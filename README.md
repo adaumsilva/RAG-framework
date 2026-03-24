@@ -1,12 +1,13 @@
 # RAG Framework
 
-[![PyPI version](https://badge.fury.io/py/ragframework.svg)](https://badge.fury.io/py/ragframework)
+[![PyPI version](https://img.shields.io/badge/pypi-coming%20soon-lightgrey)](https://github.com/adaumsilva/RAG-framework)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/adaumsilva/RAG-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/adaumsilva/RAG-framework/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/adaumsilva/RAG-framework/branch/main/graph/badge.svg)](https://codecov.io/gh/adaumsilva/RAG-framework)
 [![GitHub issues](https://img.shields.io/github/issues/adaumsilva/RAG-framework)](https://github.com/adaumsilva/RAG-framework/issues)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/adaumsilva/RAG-framework/blob/main/CONTRIBUTING.md)
-[![Downloads](https://static.pepy.tech/badge/ragframework)](https://pepy.tech/project/ragframework)
+[![GitHub contributors](https://img.shields.io/github/contributors/adaumsilva/RAG-framework)](https://github.com/adaumsilva/RAG-framework/graphs/contributors)
 [![GitHub stars](https://img.shields.io/github/stars/adaumsilva/RAG-framework?style=social)](https://github.com/adaumsilva/RAG-framework/stargazers)
 
 A modular, extensible Python framework for building **Retrieval-Augmented Generation (RAG)** pipelines. Plug in your own loaders, embedders, vector stores, and generators — or use the built-in implementations to get started in minutes.
@@ -69,22 +70,26 @@ A modular, extensible Python framework for building **Retrieval-Augmented Genera
 
 ## Installation
 
+> **Note:** The package is not yet on PyPI. Install directly from GitHub:
+
 ```bash
 # Core (numpy only)
-pip install ragframework
+pip install git+https://github.com/adaumsilva/RAG-framework.git
 
 # With PDF support
-pip install "ragframework[pdf]"
+pip install "ragframework[pdf] @ git+https://github.com/adaumsilva/RAG-framework.git"
 
 # With OpenAI support
-pip install "ragframework[openai]"
+pip install "ragframework[openai] @ git+https://github.com/adaumsilva/RAG-framework.git"
 
 # With HuggingFace embeddings
-pip install "ragframework[huggingface]"
+pip install "ragframework[huggingface] @ git+https://github.com/adaumsilva/RAG-framework.git"
 
 # Everything
-pip install "ragframework[all]"
+pip install "ragframework[all] @ git+https://github.com/adaumsilva/RAG-framework.git"
 ```
+
+Once published to PyPI, installation will simplify to `pip install ragframework`.
 
 ---
 
