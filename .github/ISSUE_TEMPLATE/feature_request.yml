@@ -1,0 +1,55 @@
+name: Feature Request
+description: Suggest a new feature or integration
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement! Please fill in as much detail as possible.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Is your feature request related to a problem? Describe it.
+      placeholder: "I'm always frustrated when I try to use X with RAG Framework because…"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the feature you'd like, including any API design ideas.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you've thought about?
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which component does this touch?
+      options:
+        - DocumentLoader
+        - TextChunker
+        - Embedder
+        - Retriever
+        - Generator
+        - RAGPipeline
+        - Configuration
+        - Documentation / Examples
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to implement this myself and open a PR
