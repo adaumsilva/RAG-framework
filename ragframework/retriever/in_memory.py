@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 from ragframework.base import Chunk, Retriever
@@ -18,7 +20,7 @@ class InMemoryRetriever(Retriever):
 
     def __init__(self) -> None:
         self._chunks: list[Chunk] = []
-        self._matrix: np.ndarray | None = None  # shape (N, dim)
+        self._matrix: np.ndarray[Any, Any] | None = None  # shape (N, dim)
 
     def add(self, chunks: list[Chunk]) -> None:
         for chunk in chunks:
@@ -39,7 +41,7 @@ class InMemoryRetriever(Retriever):
         q = np.array(query_embedding, dtype=np.float32)
         norm = np.linalg.norm(q) or 1.0
         q = q / norm
-        scores: np.ndarray = self._matrix @ q
+        scores: np.ndarray[Any, Any] = self._matrix @ q
         k = min(top_k, len(self._chunks))
         top_indices = np.argpartition(scores, -k)[-k:]
         top_indices = top_indices[np.argsort(scores[top_indices])[::-1]]
