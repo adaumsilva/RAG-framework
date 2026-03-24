@@ -25,7 +25,7 @@ class FixedSizeChunker(TextChunker):
         self.chunk_overlap = chunk_overlap
 
     @classmethod
-    def from_config(cls, config: RAGConfig) -> "FixedSizeChunker":
+    def from_config(cls, config: RAGConfig) -> FixedSizeChunker:
         return cls(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap)
 
     def chunk(self, document: Document) -> list[Chunk]:

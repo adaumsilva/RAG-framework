@@ -99,7 +99,7 @@ class RAGPipeline:
         except Exception as exc:
             raise PipelineError(f"Embedding failed: {exc}") from exc
 
-        for chunk, emb in zip(all_chunks, embeddings):
+        for chunk, emb in zip(all_chunks, embeddings, strict=True):
             chunk.embedding = emb
 
         try:
