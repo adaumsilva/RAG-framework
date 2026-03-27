@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- PDFLoader with support for per-page and whole-file modes (closes #1)
 ## [0.1.0] - 2026-03-24
 
 ### Added
