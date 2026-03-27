@@ -1,11 +1,12 @@
 """Document loading and chunking utilities."""
 
 from ragframework.document.chunkers import FixedSizeChunker, SentenceChunker
-from ragframework.document.loaders import MarkdownLoader, TextFileLoader
+from .loaders import TextFileLoader, MarkdownLoader, PDFLoader
 
 __all__ = [
     "TextFileLoader",
     "MarkdownLoader",
+    "PDFLoader",
     "FixedSizeChunker",
     "SentenceChunker",
 ]
