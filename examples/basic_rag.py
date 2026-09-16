@@ -65,7 +65,10 @@ def main() -> None:
         loader=TextFileLoader(),
         chunker=FixedSizeChunker(chunk_size=200, chunk_overlap=40),
         # RandomEmbedder produces random vectors — replace with a real
-        # embedder (OpenAI, HuggingFace) for meaningful retrieval.
+        # embedder (like OpenAIEmbedder) for meaningful retrieval.
+        # e.g.:
+        # from ragframework.embeddings.openai import OpenAIEmbedder
+        # embedder=OpenAIEmbedder(api_key="your-api-key"),
         embedder=RandomEmbedder(dim=64, seed=42),
         retriever=InMemoryRetriever(),
         # EchoGenerator returns the retrieved chunks as the answer.

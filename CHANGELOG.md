@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `OpenAIEmbedder` for generating real vectors via OpenAI API (closes #6)
 - `FAISSRetriever` for approximate cosine-similarity search with an HNSW index (closes #4)
 - `HuggingFaceEmbedder` for local embeddings with Sentence Transformers (closes #7)
 - RecursiveChunker for semantics-preserving text splitting (closes #3)
