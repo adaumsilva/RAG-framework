@@ -1,5 +1,22 @@
 # Examples
 
+## FAISS retriever
+
+Install the optional dependency with `pip install "ragframework[faiss]"`, then
+index chunks whose embeddings have already been populated:
+
+```python
+from ragframework.base import Chunk
+from ragframework.retriever import FAISSRetriever
+
+retriever = FAISSRetriever()
+retriever.add([
+    Chunk(id="north", content="North", embedding=[1.0, 0.0]),
+    Chunk(id="east", content="East", embedding=[0.0, 1.0]),
+])
+matches = retriever.retrieve([0.9, 0.1], top_k=1)
+```
+
 | File | Description |
 |------|-------------|
 | [basic_rag.py](basic_rag.py) | End-to-end pipeline using only built-in components (no API key needed) |

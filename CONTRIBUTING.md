@@ -135,6 +135,21 @@ mypy ragframework/
 
 All checks must pass before a PR can be merged.
 
+CI runs type checking in a separate Python 3.10 environment, matching the
+minimum supported Python version and the mypy target in `pyproject.toml`.
+That environment constrains NumPy to 2.2.6 because newer NumPy stubs use syntax
+that mypy cannot parse with the Python 3.10 target. To reproduce it locally:
+
+```bash
+python3.10 -m venv .venv-typecheck
+.venv-typecheck/bin/python -m pip install -c .github/constraints-typecheck.txt -e ".[faiss]" "mypy>=1.10"
+.venv-typecheck/bin/python -m mypy ragframework/
+```
+
+The Python 3.10/3.11/3.12 test matrix installs dependencies without this
+constraint, so it continues to test against the latest compatible releases.
+The constraint does not change the package's runtime dependency requirements.
+
 ---
 
 ## Pull Request Process

@@ -25,13 +25,10 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,faiss]"
 
       - name: Lint with ruff
         run: ruff check ragframework/
-
-      - name: Type check with mypy
-        run: mypy ragframework/
 
       - name: Run tests
         run: pytest tests/ -v --cov=ragframework --cov-report=xml
@@ -41,3 +38,21 @@ jobs:
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
+
+  typecheck:
+    name: Type check (Python 3.10)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install type-check dependencies
+        run: pip install -c .github/constraints-typecheck.txt -e ".[faiss]" "mypy>=1.10"
+
+      - name: Type check with mypy
+        run: mypy ragframework/
