@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `OpenAIGenerator` for grounded chat-completion generation with configurable model, prompt, API key, and token limit (closes #8)
 - `ChromaRetriever` for ephemeral and persistent ChromaDB-backed vector retrieval (closes #5)
 - `FAISSRetriever` for approximate cosine-similarity search with an HNSW index (closes #4)
 - `HuggingFaceEmbedder` for local embeddings with Sentence Transformers (closes #7)
 - RecursiveChunker for semantics-preserving text splitting (closes #3)
 - PDFLoader with support for per-page and whole-file modes (closes #1)
+
 ## [0.1.0] - 2026-03-24
 
 ### Added
