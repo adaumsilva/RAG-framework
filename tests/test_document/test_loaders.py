@@ -6,7 +6,7 @@ import types
 
 import pytest
 
-from ragframework.document.loaders import MarkdownLoader, TextFileLoader, PDFLoader
+from ragframework.document.loaders import MarkdownLoader, PDFLoader, TextFileLoader
 from ragframework.exceptions import LoaderError
 
 

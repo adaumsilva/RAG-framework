@@ -142,15 +142,21 @@ def test_non_positive_top_k_returns_empty():
         ]
     )
 
-    assert retriever.retrieve(
-        [1.0, 0.0],
-        top_k=0,
-    ) == []
+    assert (
+        retriever.retrieve(
+            [1.0, 0.0],
+            top_k=0,
+        )
+        == []
+    )
 
-    assert retriever.retrieve(
-        [1.0, 0.0],
-        top_k=-1,
-    ) == []
+    assert (
+        retriever.retrieve(
+            [1.0, 0.0],
+            top_k=-1,
+        )
+        == []
+    )
 
 
 def test_metadata_is_preserved():

@@ -14,8 +14,7 @@ _INSTALL_HINT = (
 )
 
 _DEFAULT_SYSTEM_PROMPT = (
-    "Answer the question using only the provided context. "
-    "If the context is insufficient, say so."
+    "Answer the question using only the provided context. If the context is insufficient, say so."
 )
 
 
@@ -91,11 +90,7 @@ class AnthropicGenerator(Generator):
                 f"Context:\n{numbered}\n\n"
                 f"Question: {query}"
             )
-        return (
-            "Use the following context to answer the question.\n\n"
-            "Context:\n\n"
-            f"Question: {query}"
-        )
+        return f"Use the following context to answer the question.\n\nContext:\n\nQuestion: {query}"
 
     @staticmethod
     def _extract_text(response: Any) -> str:

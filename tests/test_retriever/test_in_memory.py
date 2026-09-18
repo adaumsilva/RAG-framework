@@ -36,7 +36,6 @@ class TestInMemoryRetriever:
             r.add([bad_chunk])
 
     def test_retrieve_returns_most_similar_first(self):
-        dim = 4
         r = InMemoryRetriever()
         # chunk_a is identical to the query — highest similarity
         chunk_a = make_chunk("a", [1.0, 0.0, 0.0, 0.0])

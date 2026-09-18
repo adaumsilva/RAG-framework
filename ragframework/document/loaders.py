@@ -93,7 +93,10 @@ class PDFLoader(DocumentLoader):
         try:
             from pypdf import PdfReader
         except ImportError as exc:
-            raise ImportError("PDF support requires 'ragframework[pdf]'. " "Install it with: pip install ragframework[pdf]") from exc
+            raise ImportError(
+                "PDF support requires 'ragframework[pdf]'. "
+                "Install it with: pip install ragframework[pdf]"
+            ) from exc
 
         # Open the PDF
         try:
@@ -106,9 +109,7 @@ class PDFLoader(DocumentLoader):
         if not self.split_pages:
             # One single Document for the whole PDF
             try:
-                full_text = "\n\n".join(
-                    page.extract_text() or "" for page in reader.pages
-                )
+                full_text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
             except Exception as exc:
                 raise LoaderError(f"Failed to extract text from {source}: {exc}") from exc
 

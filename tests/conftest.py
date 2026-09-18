@@ -7,10 +7,7 @@ import pytest
 from ragframework.base import Chunk, Document
 from ragframework.config import RAGConfig
 from ragframework.document.chunkers import FixedSizeChunker
-from ragframework.document.loaders import TextFileLoader
 from ragframework.embeddings.random_embedder import RandomEmbedder
-from ragframework.generator.echo_generator import EchoGenerator
-from ragframework.retriever.in_memory import InMemoryRetriever
 
 
 @pytest.fixture()
@@ -33,7 +30,7 @@ def embedded_chunks(sample_chunks: list[Chunk]) -> list[Chunk]:
     embedder = RandomEmbedder(dim=16, seed=42)
     texts = [c.content for c in sample_chunks]
     embeddings = embedder.embed(texts)
-    for chunk, emb in zip(sample_chunks, embeddings):
+    for chunk, emb in zip(sample_chunks, embeddings, strict=True):
         chunk.embedding = emb
     return sample_chunks
 

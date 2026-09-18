@@ -56,6 +56,12 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
+Install the Git hooks once per clone:
+
+```bash
+pre-commit install
+```
+
 To install optional extras (e.g. while adding a PDF loader):
 
 ```bash

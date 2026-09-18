@@ -50,9 +50,7 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     # 1. Write a sample document to a temporary file
     # ------------------------------------------------------------------ #
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".txt", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
         f.write(SAMPLE_TEXT)
         tmp_path = f.name
 

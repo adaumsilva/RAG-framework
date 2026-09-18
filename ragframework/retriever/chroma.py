@@ -48,9 +48,7 @@ class ChromaRetriever(Retriever):
                 name=collection_name,
             )
         except Exception as exc:
-            raise RetrieverError(
-                f"Could not initialize ChromaDB: {exc}"
-            ) from exc
+            raise RetrieverError(f"Could not initialize ChromaDB: {exc}") from exc
 
     def add(self, chunks: list[Chunk]) -> None:
         """Add embedded chunks to the ChromaDB collection."""
@@ -76,9 +74,7 @@ class ChromaRetriever(Retriever):
                 metadatas=[self._metadata(chunk) for chunk in chunks],
             )
         except Exception as exc:
-            raise RetrieverError(
-                f"Failed to add chunks to ChromaDB: {exc}"
-            ) from exc
+            raise RetrieverError(f"Failed to add chunks to ChromaDB: {exc}") from exc
 
     def retrieve(
         self,
@@ -98,9 +94,7 @@ class ChromaRetriever(Retriever):
                 include=["documents", "metadatas"],
             )
         except Exception as exc:
-            raise RetrieverError(
-                f"Failed to query ChromaDB: {exc}"
-            ) from exc
+            raise RetrieverError(f"Failed to query ChromaDB: {exc}") from exc
 
         ids_result = result.get("ids") or []
         documents_result = result.get("documents") or []
@@ -134,7 +128,7 @@ class ChromaRetriever(Retriever):
         metadata: dict[str, Any] = {}
 
         for key, value in chunk.metadata.items():
-            if isinstance(value, (str, int, float, bool)):
+            if isinstance(value, str | int | float | bool):
                 metadata[key] = value
             else:
                 metadata[key] = str(value)

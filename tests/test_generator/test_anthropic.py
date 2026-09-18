@@ -82,7 +82,9 @@ def test_successful_generation(fake_anthropic: list[FakeAnthropicClient]) -> Non
     generator, client = _make_generator(fake_anthropic)
     client.messages.response_content = [FakeTextBlock("Grounded answer.")]
 
-    answer = generator.generate("What is RAG?", [Chunk(id="c1", content="RAG combines retrieval and generation.")])
+    answer = generator.generate(
+        "What is RAG?", [Chunk(id="c1", content="RAG combines retrieval and generation.")]
+    )
 
     assert answer == "Grounded answer."
     assert len(client.messages.calls) == 1
@@ -156,7 +158,9 @@ def test_environment_api_key_fallback(
     assert fake_anthropic[-1].api_key == "env-key"
 
 
-def test_missing_api_key(fake_anthropic: list[FakeAnthropicClient], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_api_key(
+    fake_anthropic: list[FakeAnthropicClient], monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
     with pytest.raises(GeneratorError, match="No API key provided"):
@@ -222,7 +226,9 @@ def test_empty_response_raises_generator_error(fake_anthropic: list[FakeAnthropi
         generator.generate("q", [Chunk(id="c1", content="context")])
 
 
-def test_non_text_response_raises_generator_error(fake_anthropic: list[FakeAnthropicClient]) -> None:
+def test_non_text_response_raises_generator_error(
+    fake_anthropic: list[FakeAnthropicClient],
+) -> None:
     generator, client = _make_generator(fake_anthropic)
     client.messages.response_content = [FakeNonTextBlock()]
 

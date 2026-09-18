@@ -17,8 +17,7 @@ from ragframework.base import Chunk, Retriever
 from ragframework.exceptions import RetrieverError
 
 _INSTALL_HINT = (
-    "FAISS support requires 'ragframework[faiss]'. "
-    "Install it with: pip install ragframework[faiss]"
+    "FAISS support requires 'ragframework[faiss]'. Install it with: pip install ragframework[faiss]"
 )
 
 
