@@ -54,10 +54,12 @@ class RAGResponse:
     Attributes:
         answer: The generated text answer.
         source_chunks: The retrieved chunks used as context.
+        query: The original user query that produced this response.
     """
 
     answer: str
     source_chunks: list[Chunk]
+    query: str = ""
 
 
 # ---------------------------------------------------------------------------

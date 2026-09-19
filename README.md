@@ -111,12 +111,13 @@ pipeline = RAGPipeline(
     config=RAGConfig(top_k=5),
 )
 
-# Ingest a document
-n_chunks = pipeline.ingest("my_document.txt")
+# Ingest documents
+n_chunks = pipeline.ingest_many(["intro.txt", "reference.txt"])
 print(f"Indexed {n_chunks} chunks")
 
-# Query
-response = pipeline.query("What is this document about?")
+# Query, optionally overriding config.top_k for this call
+response = pipeline.query("What is this document about?", top_k=3)
+print(f"Question: {response.query}")
 print(response.answer)
 for chunk in response.source_chunks:
     print(f"  Source: {chunk.metadata.get('source')} — {chunk.content[:80]}…")

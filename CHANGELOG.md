@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `RAGPipeline.ingest_many()` for ingesting multiple sources and returning the total chunk count (closes #43)
+- Per-call `RAGPipeline.query(..., top_k=...)` overrides and `RAGResponse.query` metadata (closes #43)
 - `AnthropicGenerator` for grounded answers via the Anthropic Messages API (closes #20)
 - `ChromaRetriever` for ephemeral and persistent ChromaDB-backed vector retrieval (closes #5)
 - `FAISSRetriever` for approximate cosine-similarity search with an HNSW index (closes #4)
