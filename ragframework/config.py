@@ -12,7 +12,9 @@ class RAGConfig:
     Attributes:
         chunk_size: Target character length for each text chunk.
         chunk_overlap: Number of overlapping characters between adjacent chunks.
-        top_k: Number of chunks to retrieve per query.
+        top_k: Number of chunks to keep after optional reranking.
+        retrieve_k: Number of candidate chunks to retrieve before reranking. When None,
+            the pipeline uses top_k without a reranker and top_k * 4 with one.
         embedding_dim: Dimensionality of embedding vectors (must match the
             :class:`~ragframework.base.Embedder` in use).
     """
@@ -20,6 +22,7 @@ class RAGConfig:
     chunk_size: int = 512
     chunk_overlap: int = 64
     top_k: int = 5
+    retrieve_k: int | None = None
     embedding_dim: int = 384
 
     def __post_init__(self) -> None:
@@ -31,5 +34,7 @@ class RAGConfig:
             raise ValueError("chunk_overlap must be less than chunk_size")
         if self.top_k <= 0:
             raise ValueError("top_k must be positive")
+        if self.retrieve_k is not None and self.retrieve_k <= 0:
+            raise ValueError("retrieve_k must be positive when set")
         if self.embedding_dim <= 0:
             raise ValueError("embedding_dim must be positive")

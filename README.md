@@ -66,6 +66,8 @@ A modular, extensible Python framework for building **Retrieval-Augmented Genera
   * = open contribution opportunity — see .github/GOOD_FIRST_ISSUES.md
 ```
 
+Optional reranking is supported between retrieval and generation via `Reranker`; `CrossEncoderReranker` uses the existing `[huggingface]` extra.
+
 ---
 
 ## Installation

@@ -7,6 +7,7 @@ from ragframework.base import (
     Embedder,
     Generator,
     RAGResponse,
+    Reranker,
     Retriever,
     TextChunker,
 )
@@ -25,6 +26,7 @@ __all__ = [
     "TextChunker",
     "Embedder",
     "Retriever",
+    "Reranker",
     "Generator",
     # Config
     "RAGConfig",

@@ -21,6 +21,10 @@ class RetrieverError(RAGFrameworkError):
     """Raised when a :class:`~ragframework.base.Retriever` fails."""
 
 
+class RerankerError(RAGFrameworkError):
+    """Raised when a reranker fails."""
+
+
 class GeneratorError(RAGFrameworkError):
     """Raised when a :class:`~ragframework.base.Generator` fails."""
 

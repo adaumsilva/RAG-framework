@@ -2,6 +2,7 @@
 
 import pytest
 
+from ragframework.base import Chunk, Reranker
 from ragframework.config import RAGConfig
 from ragframework.document.chunkers import FixedSizeChunker
 from ragframework.document.loaders import TextFileLoader
@@ -10,6 +11,11 @@ from ragframework.exceptions import PipelineError
 from ragframework.generator.echo_generator import EchoGenerator
 from ragframework.pipeline.rag import RAGPipeline
 from ragframework.retriever.in_memory import InMemoryRetriever
+
+
+class ReverseReranker(Reranker):
+    def rerank(self, query, chunks, top_k):
+        return list(reversed(chunks))[:top_k]
 
 
 @pytest.fixture()
@@ -39,6 +45,22 @@ class TestRAGPipeline:
         pipeline.ingest(tmp_text_file)
         response = pipeline.query("test")
         assert len(response.source_chunks) <= 2
+
+    def test_query_with_reranker(self):
+        class FixedRetriever(InMemoryRetriever):
+            def retrieve(self, query_embedding, top_k=5):
+                return [Chunk(id="1", content="one"), Chunk(id="2", content="two")][:top_k]
+
+        p = RAGPipeline(
+            loader=TextFileLoader(),
+            chunker=FixedSizeChunker(),
+            embedder=RandomEmbedder(dim=16, seed=0),
+            retriever=FixedRetriever(),
+            generator=EchoGenerator(),
+            reranker=ReverseReranker(),
+            config=RAGConfig(top_k=1, retrieve_k=2),
+        )
+        assert p.query("test").source_chunks[0].id == "2"
 
     def test_ingest_missing_file_raises_pipeline_error(self, pipeline):
         with pytest.raises(PipelineError):

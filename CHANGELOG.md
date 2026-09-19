@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-09-19
 
 ### Added
+- Optional reranking stage with `Reranker`, `CrossEncoderReranker`, `NoOpReranker`, and configurable pre-rerank retrieval depth (closes #38)
 - `AnthropicGenerator` for grounded answers via the Anthropic Messages API (closes #20)
 - `ChromaRetriever` for ephemeral and persistent ChromaDB-backed vector retrieval (closes #5)
 - `FAISSRetriever` for approximate cosine-similarity search with an HNSW index (closes #4)

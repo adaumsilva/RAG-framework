@@ -139,6 +139,14 @@ class Retriever(ABC):
         """
 
 
+class Reranker(ABC):
+    """Re-order retrieved chunks using the query text and chunk contents."""
+
+    @abstractmethod
+    def rerank(self, query: str, chunks: list[Chunk], top_k: int) -> list[Chunk]:
+        """Return the *top_k* most relevant chunks after reranking."""
+
+
 class Generator(ABC):
     """Generate a natural-language answer given a query and retrieved context."""
 
