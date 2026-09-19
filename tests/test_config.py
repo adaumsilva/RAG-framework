@@ -10,7 +10,7 @@ def test_defaults():
     assert cfg.chunk_size == 512
     assert cfg.chunk_overlap == 64
     assert cfg.top_k == 5
-    assert cfg.embedding_dim == 384
+    assert cfg.embedding_dim is None
 
 
 def test_custom_values():
@@ -37,3 +37,8 @@ def test_overlap_must_be_less_than_chunk_size():
 def test_invalid_top_k():
     with pytest.raises(ValueError, match="top_k"):
         RAGConfig(top_k=0)
+
+
+def test_invalid_embedding_dim():
+    with pytest.raises(ValueError, match="embedding_dim"):
+        RAGConfig(embedding_dim=0)

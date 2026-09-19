@@ -64,3 +64,55 @@ class TestRAGPipeline:
             generator=EchoGenerator(),
         )
         assert p.config.top_k == 5
+
+    def test_embedding_dimension_mismatch_during_ingest(self, tmp_text_file):
+        p = RAGPipeline(
+            loader=TextFileLoader(),
+            chunker=FixedSizeChunker(),
+            embedder=RandomEmbedder(dim=16),
+            retriever=InMemoryRetriever(),
+            generator=EchoGenerator(),
+            config=RAGConfig(embedding_dim=8),
+        )
+
+        with pytest.raises(
+            PipelineError,
+            match=r"Embedder produced 16-dim vectors but RAGConfig\.embedding_dim is 8",
+        ):
+            p.ingest(tmp_text_file)
+
+    def test_embedding_dimension_mismatch_during_query(self):
+        p = RAGPipeline(
+            loader=TextFileLoader(),
+            chunker=FixedSizeChunker(),
+            embedder=RandomEmbedder(dim=16),
+            retriever=InMemoryRetriever(),
+            generator=EchoGenerator(),
+            config=RAGConfig(embedding_dim=8),
+        )
+
+        with pytest.raises(
+            PipelineError,
+            match=r"Embedder produced 16-dim vectors but RAGConfig\.embedding_dim is 8",
+        ):
+            p.query("test")
+
+    def test_embedding_dimension_none_disables_validation(self, pipeline, tmp_text_file):
+        assert pipeline.config.embedding_dim is None
+        assert pipeline.ingest(tmp_text_file) > 0
+
+    def test_from_config_builds_chunker(self):
+        config = RAGConfig(chunk_size=37, chunk_overlap=9, embedding_dim=16)
+
+        p = RAGPipeline.from_config(
+            config,
+            loader=TextFileLoader(),
+            embedder=RandomEmbedder(dim=16),
+            retriever=InMemoryRetriever(),
+            generator=EchoGenerator(),
+        )
+
+        assert isinstance(p.chunker, FixedSizeChunker)
+        assert p.chunker.chunk_size == 37
+        assert p.chunker.chunk_overlap == 9
+        assert p.config is config
