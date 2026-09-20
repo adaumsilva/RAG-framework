@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `TextFileLoader` / `MarkdownLoader` convert `UnicodeDecodeError` and unknown-encoding `LookupError` into `LoaderError` with the path and encoding in the message (previously leaked raw); shared read logic extracted into `_read_text_file` (fixes #24)
+
 ## [0.2.0] - 2026-09-19
 
 ### Added

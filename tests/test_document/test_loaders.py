@@ -32,6 +32,18 @@ class TestTextFileLoader:
         with pytest.raises(LoaderError, match="Not a file"):
             loader.load(str(tmp_path))
 
+    def test_undecodable_bytes_raise_loader_error(self, tmp_path):
+        bad = tmp_path / "latin1.txt"
+        bad.write_bytes("café".encode("latin-1"))
+        loader = TextFileLoader()
+        with pytest.raises(LoaderError, match="Could not read"):
+            loader.load(str(bad))
+
+    def test_unknown_encoding_raises_loader_error(self, tmp_text_file):
+        loader = TextFileLoader(encoding="nope")
+        with pytest.raises(LoaderError, match="Could not read"):
+            loader.load(tmp_text_file)
+
 
 class TestMarkdownLoader:
     def test_loads_markdown(self, tmp_path):
@@ -47,6 +59,20 @@ class TestMarkdownLoader:
         loader = MarkdownLoader()
         with pytest.raises(LoaderError):
             loader.load("/no/such/file.md")
+
+    def test_undecodable_bytes_raise_loader_error(self, tmp_path):
+        bad = tmp_path / "latin1.md"
+        bad.write_bytes("# Titre café".encode("latin-1"))
+        loader = MarkdownLoader()
+        with pytest.raises(LoaderError, match="Could not read"):
+            loader.load(str(bad))
+
+    def test_unknown_encoding_raises_loader_error(self, tmp_path):
+        md = tmp_path / "doc.md"
+        md.write_text("# Title", encoding="utf-8")
+        loader = MarkdownLoader(encoding="nope")
+        with pytest.raises(LoaderError, match="Could not read"):
+            loader.load(str(md))
 
 
 def test_pdf_loader_requires_pypdf(tmp_path, monkeypatch):
