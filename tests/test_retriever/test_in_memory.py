@@ -44,3 +44,15 @@ class TestInMemoryRetriever:
         r.add([chunk_a, chunk_b, chunk_c])
         results = r.retrieve([1.0, 0.0, 0.0, 0.0], top_k=3)
         assert results[0].id == "a"
+
+    @pytest.mark.parametrize("top_k", [0, -1])
+    def test_non_positive_top_k_returns_empty(self, top_k):
+        r = InMemoryRetriever()
+        r.add([make_chunk("a", [1.0, 0.0]), make_chunk("b", [0.0, 1.0])])
+        assert r.retrieve([1.0, 0.0], top_k=top_k) == []
+
+    def test_bool_top_k_raises(self):
+        r = InMemoryRetriever()
+        r.add([make_chunk("a", [1.0, 0.0])])
+        with pytest.raises(RetrieverError, match="top_k must be an integer"):
+            r.retrieve([1.0, 0.0], top_k=True)

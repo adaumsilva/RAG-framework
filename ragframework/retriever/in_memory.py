@@ -36,7 +36,17 @@ class InMemoryRetriever(Retriever):
         self._matrix = vectors / norms
 
     def retrieve(self, query_embedding: list[float], top_k: int = 5) -> list[Chunk]:
-        if not self._chunks or self._matrix is None:
+        """Return up to ``top_k`` chunks ordered by cosine similarity.
+
+        Non-positive ``top_k`` values return an empty list, matching the
+        other built-in retrievers.
+
+        Raises:
+            RetrieverError: If ``top_k`` is not an integer.
+        """
+        if not isinstance(top_k, int) or isinstance(top_k, bool):
+            raise RetrieverError("top_k must be an integer.")
+        if top_k <= 0 or not self._chunks or self._matrix is None:
             return []
         q = np.array(query_embedding, dtype=np.float32)
         norm = np.linalg.norm(q) or 1.0
