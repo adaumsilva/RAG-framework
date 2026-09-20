@@ -18,6 +18,21 @@ def _make_id(source: str) -> str:
     return hashlib.md5(source.encode()).hexdigest()[:12]
 
 
+def _read_text_file(path: Path, encoding: str, source: str) -> str:
+    """Read a text file, converting all failures into :class:`LoaderError`.
+
+    ``Path.read_text`` can raise :class:`OSError` (missing file, permission),
+    :class:`UnicodeDecodeError` (bytes not valid in the configured encoding,
+    a ``ValueError``), or :class:`LookupError` (unknown encoding name). The
+    documented contract is that loaders only raise ``LoaderError``, so every
+    failure mode is converted here.
+    """
+    try:
+        return path.read_text(encoding=encoding)
+    except (OSError, UnicodeDecodeError, LookupError) as exc:
+        raise LoaderError(f"Could not read {source} (encoding={encoding}): {exc}") from exc
+
+
 class TextFileLoader(DocumentLoader):
     """Load a plain-text (``.txt``) file as a single :class:`Document`."""
 
@@ -30,10 +45,7 @@ class TextFileLoader(DocumentLoader):
             raise LoaderError(f"File not found: {source}")
         if not path.is_file():
             raise LoaderError(f"Not a file: {source}")
-        try:
-            content = path.read_text(encoding=self.encoding)
-        except OSError as exc:
-            raise LoaderError(f"Could not read {source}: {exc}") from exc
+        content = _read_text_file(path, self.encoding, source)
         return [
             Document(
                 id=_make_id(source),
@@ -60,10 +72,7 @@ class MarkdownLoader(DocumentLoader):
             raise LoaderError(f"File not found: {source}")
         if not path.is_file():
             raise LoaderError(f"Not a file: {source}")
-        try:
-            content = path.read_text(encoding=self.encoding)
-        except OSError as exc:
-            raise LoaderError(f"Could not read {source}: {exc}") from exc
+        content = _read_text_file(path, self.encoding, source)
         return [
             Document(
                 id=_make_id(source),
