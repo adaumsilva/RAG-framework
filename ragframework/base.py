@@ -136,6 +136,7 @@ class Retriever(ABC):
 
         Returns:
             Up to *top_k* chunks, ordered by relevance (most relevant first).
+            A non-positive *top_k* returns an empty list.
         """
 
 

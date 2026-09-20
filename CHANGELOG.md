@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `InMemoryRetriever.retrieve()` returns an empty list for non-positive `top_k` and raises `RetrieverError` for non-integer/bool `top_k`, matching the other built-in retrievers (fixes #23)
+
 ## [0.2.0] - 2026-09-19
 
 ### Added
