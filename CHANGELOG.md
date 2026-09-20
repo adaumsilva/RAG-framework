@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `FixedSizeChunker` now raises `ValueError` for `chunk_size <= 0` or `chunk_overlap < 0` (same messages as `RecursiveChunker`); `SentenceChunker` validates `max_sentences > 0` and `overlap_sentences >= 0`; added `RecursiveChunker.from_config()` mirroring `FixedSizeChunker.from_config()` (fixes #25)
+
 ## [0.2.0] - 2026-09-19
 
 ### Added

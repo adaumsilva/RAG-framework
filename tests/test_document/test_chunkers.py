@@ -37,6 +37,16 @@ class TestFixedSizeChunker:
         with pytest.raises(ValueError):
             FixedSizeChunker(chunk_size=10, chunk_overlap=10)
 
+    @pytest.mark.parametrize("chunk_size", [0, -1])
+    def test_non_positive_chunk_size_raises(self, chunk_size):
+        with pytest.raises(ValueError, match="chunk_size must be positive"):
+            FixedSizeChunker(chunk_size=chunk_size)
+
+    @pytest.mark.parametrize("chunk_overlap", [-1, -5])
+    def test_negative_chunk_overlap_raises(self, chunk_overlap):
+        with pytest.raises(ValueError, match="chunk_overlap must be non-negative"):
+            FixedSizeChunker(chunk_size=10, chunk_overlap=chunk_overlap)
+
     def test_short_doc_single_chunk(self):
         doc = Document(id="x", content="Short text.", metadata={})
         chunker = FixedSizeChunker(chunk_size=512, chunk_overlap=0)
@@ -61,6 +71,15 @@ class TestSentenceChunker:
         with pytest.raises(ValueError):
             SentenceChunker(max_sentences=2, overlap_sentences=2)
 
+    @pytest.mark.parametrize("max_sentences", [0, -2])
+    def test_non_positive_max_sentences_raises(self, max_sentences):
+        with pytest.raises(ValueError, match="max_sentences must be positive"):
+            SentenceChunker(max_sentences=max_sentences)
+
+    def test_negative_overlap_sentences_raises(self):
+        with pytest.raises(ValueError, match="overlap_sentences must be non-negative"):
+            SentenceChunker(max_sentences=5, overlap_sentences=-1)
+
     def test_empty_doc(self):
         doc = Document(id="x", content="", metadata={})
         chunker = SentenceChunker()
@@ -75,6 +94,15 @@ class TestRecursiveChunker:
         chunker = RecursiveChunker()
         chunks = chunker.chunk(doc)
         assert chunks == []
+
+    def test_from_config(self):
+        from ragframework.config import RAGConfig
+        from ragframework.document.chunkers import RecursiveChunker
+
+        config = RAGConfig(chunk_size=100, chunk_overlap=10)
+        chunker = RecursiveChunker.from_config(config)
+        assert chunker.chunk_size == 100
+        assert chunker.chunk_overlap == 10
 
     def test_short_doc(self):
         from ragframework.document.chunkers import RecursiveChunker
