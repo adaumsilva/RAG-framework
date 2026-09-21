@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `CSVLoader` and `JSONLLoader` for loading selected record fields into documents with configurable IDs, metadata, encoding, and row/line-specific errors, using only the standard library (closes #36).
 ### Fixed
+- `InMemoryRetriever.retrieve()` returns an empty list for non-positive `top_k` (and rejects bool/non-integer `top_k`), matching `FAISSRetriever` / `ChromaRetriever` (closes #23).
 - `InMemoryRetriever` now raises `RetrieverError` for invalid vectors and dimension mismatches, validates complete batches before updating stored data, and treats empty batches as a no-op. Vector validation and normalization are shared with `FAISSRetriever` (closes #26).
 
 ## [0.2.0] - 2026-09-19
