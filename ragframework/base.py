@@ -35,7 +35,7 @@ class Chunk:
     """A text chunk derived from a :class:`Document`.
 
     Attributes:
-        id: Unique identifier (e.g. ``"<doc_id>:<chunk_index>"``).
+        id: Unique identifier (e.g. ``"{doc_id}:{chunk_index}"``).
         content: Text content of this chunk.
         metadata: Inherited / augmented metadata from the parent document.
         embedding: Optional dense vector produced by an :class:`Embedder`.
@@ -132,10 +132,12 @@ class Retriever(ABC):
 
         Args:
             query_embedding: Query vector produced by an :class:`Embedder`.
-            top_k: Maximum number of chunks to return.
+            top_k: Maximum number of chunks to return. Non-positive values
+                must return an empty list.
 
         Returns:
             Up to *top_k* chunks, ordered by relevance (most relevant first).
+            An empty list when *top_k* is non-positive.
         """
 
 
