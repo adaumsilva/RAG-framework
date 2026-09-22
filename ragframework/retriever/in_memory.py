@@ -77,5 +77,11 @@ class InMemoryRetriever(Retriever):
         top_indices = top_indices[np.argsort(scores[top_indices])[::-1]]
         return [self._chunks[i] for i in top_indices]
 
+    def clear(self) -> None:
+        """Remove all chunks and reset the accepted embedding dimension."""
+        self._chunks = []
+        self._matrix = None
+        self._dimension = None
+
     def __len__(self) -> int:
         return len(self._chunks)

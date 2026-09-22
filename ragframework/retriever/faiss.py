@@ -128,6 +128,12 @@ class FAISSRetriever(Retriever):
             self._chunks[int(label)] for label in labels[0] if 0 <= int(label) < len(self._chunks)
         ]
 
+    def clear(self) -> None:
+        """Drop the index so the next batch can use a new dimension."""
+        self._chunks = []
+        self._dimension = None
+        self._index = None
+
     def __len__(self) -> int:
         """Return the number of indexed chunks."""
         return len(self._chunks)

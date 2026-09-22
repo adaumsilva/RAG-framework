@@ -129,6 +129,14 @@ class Retriever(ABC):
         """
 
     @abstractmethod
+    def __len__(self) -> int:
+        """Return the number of indexed chunks."""
+
+    @abstractmethod
+    def clear(self) -> None:
+        """Remove all indexed chunks."""
+
+    @abstractmethod
     def retrieve(self, query_embedding: list[float], top_k: int = 5) -> list[Chunk]:
         """Return the *top_k* most relevant chunks for *query_embedding*.
 

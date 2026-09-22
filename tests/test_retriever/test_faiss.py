@@ -51,6 +51,17 @@ def test_batches_append_without_replacing_existing_chunks() -> None:
     assert retriever.retrieve([0.0, 1.0, 0.0], top_k=2)[0] is second
 
 
+def test_clear_empties_index_and_allows_new_dimension() -> None:
+    retriever = FAISSRetriever()
+    retriever.add([make_chunk("old", [1.0, 0.0])])
+    retriever.clear()
+    assert len(retriever) == 0
+    assert retriever.retrieve([1.0, 0.0]) == []
+    new = make_chunk("new", [1.0, 0.0, 0.0])
+    retriever.add([new])
+    assert retriever.retrieve([1.0, 0.0, 0.0]) == [new]
+
+
 def test_hnsw_index_uses_configured_parameters_and_inner_product() -> None:
     retriever = FAISSRetriever(m=12, ef_construction=48, ef_search=24)
     retriever.add([make_chunk("one", [1.0, 0.0])])
