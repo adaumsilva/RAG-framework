@@ -36,6 +36,16 @@ class TestInMemoryRetriever:
 
         assert "Added chunks count=2 dimension=16" in caplog.text
 
+    def test_clear_empties_index_and_allows_new_dimension(self):
+        r = InMemoryRetriever()
+        r.add([make_chunk("old", [1.0, 0.0])])
+        r.clear()
+        assert len(r) == 0
+        assert r.retrieve([1.0, 0.0]) == []
+        new = make_chunk("new", [1.0, 0.0, 0.0])
+        r.add([new])
+        assert r.retrieve([1.0, 0.0, 0.0]) == [new]
+
     def test_retrieve_top_k_limited(self, embedded_chunks):
         r = InMemoryRetriever()
         r.add(embedded_chunks)
