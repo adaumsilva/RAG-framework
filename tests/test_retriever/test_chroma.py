@@ -62,6 +62,16 @@ def test_add_and_retrieve():
     assert results[0].metadata["source"] == "test.txt"
 
 
+def test_clear_empties_collection_and_allows_readding():
+    retriever = ChromaRetriever(collection_name="test_clear")
+    retriever.add([make_chunk("old", [1.0, 0.0])])
+    retriever.clear()
+    assert len(retriever) == 0
+    assert retriever.retrieve([1.0, 0.0]) == []
+    retriever.add([make_chunk("new", [1.0, 0.0])])
+    assert [chunk.id for chunk in retriever.retrieve([1.0, 0.0])] == ["new"]
+
+
 def test_retrieve_top_k_limited():
     retriever = ChromaRetriever(
         collection_name="test_top_k",
