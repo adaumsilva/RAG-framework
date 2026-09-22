@@ -81,6 +81,16 @@ def test_add_logs_count_and_dimension(caplog):
     assert "Added chunks count=2 dimension=3" in caplog.text
 
 
+def test_clear_empties_collection_and_allows_readding():
+    retriever = ChromaRetriever(collection_name="test_clear")
+    retriever.add([make_chunk("old", [1.0, 0.0])])
+    retriever.clear()
+    assert len(retriever) == 0
+    assert retriever.retrieve([1.0, 0.0]) == []
+    retriever.add([make_chunk("new", [1.0, 0.0])])
+    assert [chunk.id for chunk in retriever.retrieve([1.0, 0.0])] == ["new"]
+
+
 def test_retrieve_top_k_limited():
     retriever = ChromaRetriever(
         collection_name="test_top_k",
