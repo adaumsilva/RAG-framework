@@ -150,3 +150,71 @@ class PDFLoader(DocumentLoader):
                     )
                 )
         return documents
+
+
+class DirectoryLoader(DocumentLoader):
+    """Load documents from a directory using loaders selected by file extension."""
+
+    def __init__(
+        self,
+        loaders: dict[str, DocumentLoader] | None = None,
+        glob: str = "**/*",
+        recursive: bool = True,
+        on_error: str = "raise",
+    ) -> None:
+        if on_error not in {"skip", "raise"}:
+            raise ValueError("on_error must be either 'skip' or 'raise'")
+
+        if loaders is None:
+            loaders = {
+                ".txt": TextFileLoader(),
+                ".md": MarkdownLoader(),
+                ".markdown": MarkdownLoader(),
+                ".pdf": PDFLoader(),
+            }
+
+        self.loaders = loaders
+        self.glob = glob
+        self.recursive = recursive
+        self.on_error = on_error
+
+    def load(self, source: str) -> list[Document]:
+        root = Path(source)
+
+        if not root.exists():
+            raise LoaderError(f"Directory not found: {source}")
+
+        if not root.is_dir():
+            raise LoaderError(f"Not a directory: {source}")
+
+        paths = root.rglob(self.glob) if self.recursive else root.glob(self.glob)
+
+        documents: list[Document] = []
+
+        for path in sorted(paths):
+            if not path.is_file():
+                continue
+
+            extension = path.suffix.lower()
+            loader = self.loaders.get(extension)
+
+            if loader is None:
+                continue
+
+            try:
+                loaded_documents = loader.load(str(path))
+            except Exception as exc:
+                if self.on_error == "skip":
+                    continue
+
+                raise LoaderError(
+                    f"Failed to load {path}: {exc}"
+                ) from exc
+
+            relative_path = path.relative_to(root).as_posix()
+
+            for document in loaded_documents:
+                document.metadata["relative_path"] = relative_path
+                documents.append(document)
+
+        return documents

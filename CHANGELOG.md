@@ -60,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI (Python 3.10 / 3.11 / 3.12)
 - Issue templates, PR template, and contributor guide
 - 10 curated Good First Issues for new contributors
+- `DirectoryLoader` for loading supported documents from a directory with per-extension loader dispatch
 
 [Unreleased]: https://github.com/adaumsilva/RAG-framework/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/adaumsilva/RAG-framework/compare/v0.1.0...v0.2.0
