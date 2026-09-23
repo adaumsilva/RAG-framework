@@ -136,3 +136,25 @@ class TestInMemoryRetriever:
             r.retrieve(embedding)
 
         assert r.retrieve([1.0, 0.0]) == [existing]
+
+    def test_non_positive_top_k_returns_empty(self):
+        r = InMemoryRetriever()
+        r.add(
+            [
+                make_chunk("a", [1.0, 0.0]),
+                make_chunk("b", [0.0, 1.0]),
+                make_chunk("c", [0.5, 0.5]),
+                make_chunk("d", [1.0, 1.0]),
+                make_chunk("e", [0.2, 0.8]),
+            ]
+        )
+
+        assert r.retrieve([1.0, 0.0], top_k=0) == []
+        assert r.retrieve([1.0, 0.0], top_k=-1) == []
+
+    def test_bool_top_k_raises_retriever_error(self):
+        r = InMemoryRetriever()
+        r.add([make_chunk("a", [1.0, 0.0])])
+
+        with pytest.raises(RetrieverError, match="top_k must be an integer"):
+            r.retrieve([1.0, 0.0], top_k=True)
