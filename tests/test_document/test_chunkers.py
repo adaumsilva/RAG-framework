@@ -66,6 +66,68 @@ class TestSentenceChunker:
         chunker = SentenceChunker()
         assert chunker.chunk(doc) == []
 
+    def test_max_chars_none_preserves_behavior(self, sentence_doc):
+        chunker = SentenceChunker(
+            max_sentences=2,
+            overlap_sentences=0,
+            max_chars=None,
+        )
+
+        chunks = chunker.chunk(sentence_doc)
+
+        assert len(chunks) >= 2
+
+    def test_long_sentence_is_split(self):
+        doc = Document(
+            id="long",
+            content="A" * 50,
+            metadata={},
+        )
+
+        chunker = SentenceChunker(
+            max_sentences=5,
+            overlap_sentences=0,
+            max_chars=10,
+        )
+
+        chunks = chunker.chunk(doc)
+
+        assert len(chunks) == 5
+        assert all(len(chunk.content) <= 10 for chunk in chunks)
+        assert "".join(chunk.content for chunk in chunks) == "A" * 50
+
+    def test_max_chars_closes_window_early(self, sentence_doc):
+        chunker = SentenceChunker(
+            max_sentences=5,
+            overlap_sentences=0,
+            max_chars=20,
+        )
+
+        chunks = chunker.chunk(sentence_doc)
+
+        assert all(len(chunk.content) <= 20 for chunk in chunks)
+
+    def test_max_chars_preserves_overlap_when_closing_early(self):
+        doc = Document(
+            id="overlap",
+            content="Aaa. Bbb. Ccc. Ddd.",
+            metadata={},
+        )
+
+        chunker = SentenceChunker(
+            max_sentences=5,
+            overlap_sentences=1,
+            max_chars=9,
+        )
+
+        chunks = chunker.chunk(doc)
+
+        assert [chunk.content for chunk in chunks] == [
+            "Aaa. Bbb.",
+            "Bbb. Ccc.",
+            "Ccc. Ddd.",
+        ]
+
 
 class TestRecursiveChunker:
     def test_empty_doc(self):

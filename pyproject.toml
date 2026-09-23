@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -64,6 +65,9 @@ Changelog = "https://github.com/adaumsilva/RAG-framework/blob/main/CHANGELOG.md"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["ragframework*"]
+
+[tool.setuptools.package-data]
+ragframework = ["py.typed"]
 
 [tool.black]
 line-length = 100

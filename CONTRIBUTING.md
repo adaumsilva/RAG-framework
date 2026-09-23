@@ -98,6 +98,8 @@ ragframework/
 
 ### Key conventions
 
+Line endings are enforced as LF by `.gitattributes`; no local Git configuration is needed.
+
 | Rule | Why |
 |------|-----|
 | Subclass the right ABC from `ragframework/base.py` | Keeps the pipeline plug-and-play |

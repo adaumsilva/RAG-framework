@@ -10,10 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `DocxLoader` with support for per-paragraph and whole-file modes (closes #2)
+- PEP 561 `py.typed` marker in source distributions and wheels so downstream type checkers can use the package's annotations (closes #47).
+- Add an optional `max_chars` limit to `SentenceChunker`.
+- `RAGConfig.embed_batch_size` so `RAGPipeline.ingest()` embeds chunks in bounded batches (closes #42)
+- `RAGPipeline.ingest_many()` for ingesting multiple sources and returning the total chunk count (closes #43)
+- Per-call `RAGPipeline.query(..., top_k=...)` overrides and `RAGResponse.query` metadata (closes #43)
+- `OpenAIGenerator` for OpenAI-powered grounded answer generation (closes #8)
+- `CSVLoader` and `JSONLLoader` for loading selected record fields into documents with configurable IDs, metadata, encoding, and row/line-specific errors, using only the standard library (closes #36).
+- `HTMLLoader` for extracting readable text and title metadata from local HTML files and HTTP(S) URLs with no optional dependencies (closes #35).
 
-## [0.2.0] - 2026-09-19
+### Fixed
+
+- Enforce LF line endings with `.gitattributes` across platforms while keeping PNG files binary (closes #48).
+- `InMemoryRetriever` now raises `RetrieverError` for invalid vectors and dimension mismatches, validates complete batches before updating stored data, and treats empty batches as a no-op. Vector validation and normalization are shared with `FAISSRetriever` (closes #26).
 
 ### Added
+
 - Optional reranking stage with `Reranker`, `CrossEncoderReranker`, `NoOpReranker`, and configurable pre-rerank retrieval depth (closes #38)
 - `AnthropicGenerator` for grounded answers via the Anthropic Messages API (closes #20)
 - `ChromaRetriever` for ephemeral and persistent ChromaDB-backed vector retrieval (closes #5)
@@ -23,13 +35,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PDFLoader` with support for per-page and whole-file modes (closes #1)
 - `AsyncRAGPipeline` for asynchronous RAG ingestion and querying using `asyncio.to_thread()` (closes #9)
 
+### Fixed
+
+- Validate configured embedding dimensions during ingestion and querying (closes #29)
+
 ### Changed
+
+- Make `embedding_dim` validation opt-in and add `RAGPipeline.from_config()` for chunk settings
 - License metadata now uses an SPDX expression (`license = "MIT"`) in `pyproject.toml`
 - Releases are published to PyPI via GitHub Actions trusted publishing (see `RELEASING.md`)
+
+======
 
 ## [0.1.0] - 2026-03-24
 
 ### Added
+
 - Initial project scaffold with modular architecture
 - Abstract base classes: `DocumentLoader`, `TextChunker`, `Embedder`, `Retriever`, `Generator`
 - Core dataclasses: `Document`, `Chunk`, `RAGResponse`

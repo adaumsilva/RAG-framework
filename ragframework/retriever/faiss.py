@@ -15,6 +15,7 @@ else:
 
 from ragframework.base import Chunk, Retriever
 from ragframework.exceptions import RetrieverError
+from ragframework.utils.vectors import validate_vector
 
 _INSTALL_HINT = (
     "FAISS support requires 'ragframework[faiss]'. Install it with: pip install ragframework[faiss]"
@@ -71,7 +72,7 @@ class FAISSRetriever(Retriever):
                     f"Chunk '{chunk.id}' has no embedding. "
                     "Embed chunks before adding them to the retriever."
                 )
-            vector = self._validated_vector(chunk.embedding, f"Chunk '{chunk.id}' embedding")
+            vector = validate_vector(chunk.embedding, f"Chunk '{chunk.id}' embedding")
             if expected_dimension is None:
                 expected_dimension = int(vector.shape[0])
             elif vector.shape[0] != expected_dimension:
@@ -111,7 +112,7 @@ class FAISSRetriever(Retriever):
         if top_k <= 0 or self._index is None or self._dimension is None:
             return []
 
-        query = self._validated_vector(query_embedding, "Query embedding")
+        query = validate_vector(query_embedding, "Query embedding")
         if query.shape[0] != self._dimension:
             raise RetrieverError(
                 f"Query embedding has dimension {query.shape[0]}; expected {self._dimension}."
@@ -126,21 +127,6 @@ class FAISSRetriever(Retriever):
         return [
             self._chunks[int(label)] for label in labels[0] if 0 <= int(label) < len(self._chunks)
         ]
-
-    @staticmethod
-    def _validated_vector(values: list[float], label: str) -> np.ndarray[Any, np.dtype[np.float32]]:
-        try:
-            vector = np.asarray(values, dtype=np.float32)
-        except (TypeError, ValueError) as exc:
-            raise RetrieverError(f"{label} must contain only numeric values.") from exc
-        if vector.ndim != 1 or vector.size == 0:
-            raise RetrieverError(f"{label} must be a non-empty one-dimensional vector.")
-        if not np.isfinite(vector).all():
-            raise RetrieverError(f"{label} must contain only finite values.")
-        norm = float(np.linalg.norm(vector))
-        if not np.isfinite(norm) or norm == 0.0:
-            raise RetrieverError(f"{label} must not be a zero vector.")
-        return np.ascontiguousarray(vector / norm, dtype=np.float32)
 
     def __len__(self) -> int:
         """Return the number of indexed chunks."""

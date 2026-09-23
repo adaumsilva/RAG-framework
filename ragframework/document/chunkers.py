@@ -60,13 +60,25 @@ class SentenceChunker(TextChunker):
         max_sentences: Maximum sentences per chunk.
         overlap_sentences: Number of sentences to repeat at the start of the
             next chunk (context carry-over).
+        max_chars: Optional maximum number of characters per chunk. If set,
+            chunks close early when this limit is reached, and sentences
+            longer than the limit are hard-split.
     """
 
-    def __init__(self, max_sentences: int = 5, overlap_sentences: int = 1) -> None:
+    def __init__(
+        self,
+        max_sentences: int = 5,
+        overlap_sentences: int = 1,
+        max_chars: int | None = None,
+    ) -> None:
         if overlap_sentences >= max_sentences:
             raise ValueError("overlap_sentences must be less than max_sentences")
+        if max_chars is not None and max_chars <= 0:
+            raise ValueError("max_chars must be greater than 0")
+
         self.max_sentences = max_sentences
         self.overlap_sentences = overlap_sentences
+        self.max_chars = max_chars
 
     def _split_sentences(self, text: str) -> list[str]:
         import re
@@ -74,27 +86,116 @@ class SentenceChunker(TextChunker):
         raw = re.split(r"(?<=[.!?])\s+", text.strip())
         return [s.strip() for s in raw if s.strip()]
 
+    def _split_long_sentence(self, sentence: str) -> list[str]:
+        if self.max_chars is None:
+            return [sentence]
+
+        chunker = RecursiveChunker(
+            separators=[" ", ""],
+            chunk_size=self.max_chars,
+            chunk_overlap=0,
+        )
+
+        document = Document(id="sentence", content=sentence, metadata={})
+        return [chunk.content for chunk in chunker.chunk(document)]
+
     def chunk(self, document: Document) -> list[Chunk]:
         sentences = self._split_sentences(document.content)
         if not sentences:
             return []
 
-        chunks: list[Chunk] = []
-        step = self.max_sentences - self.overlap_sentences
-        index = 0
+        chunks = []
         chunk_num = 0
-        while index < len(sentences):
-            window = sentences[index : index + self.max_sentences]
-            content = " ".join(window)
-            chunks.append(
-                Chunk(
-                    id=f"{document.id}:{chunk_num}",
-                    content=content,
-                    metadata={**document.metadata, "chunk_index": chunk_num},
+
+        # Preserve the original behavior when max_chars is not set.
+        if self.max_chars is None:
+            step = self.max_sentences - self.overlap_sentences
+            for index in range(0, len(sentences), step):
+                window = sentences[index : index + self.max_sentences]
+                content = " ".join(window)
+
+                chunks.append(
+                    Chunk(
+                        id=f"{document.id}:{chunk_num}",
+                        content=content,
+                        metadata={
+                            **document.metadata,
+                            "chunk_index": chunk_num,
+                        },
+                    )
                 )
-            )
-            chunk_num += 1
-            index += step
+                chunk_num += 1
+
+            return chunks
+
+        # Character-limited behavior.
+        index = 0
+
+        while index < len(sentences):
+            window = []
+            current_length = 0
+            oversized_index = None
+            closed_early = False
+
+            for sentence_index in range(
+                index,
+                min(index + self.max_sentences, len(sentences)),
+            ):
+                sentence = sentences[sentence_index]
+                sentence_length = len(sentence)
+
+                if sentence_length > self.max_chars:
+                    oversized_index = sentence_index
+                    break
+
+                separator_length = 1 if window else 0
+
+                if window and current_length + separator_length + sentence_length > self.max_chars:
+                    closed_early = True
+                    break
+
+                window.append(sentence)
+                current_length += separator_length + sentence_length
+
+            if window:
+                content = " ".join(window)
+
+                chunks.append(
+                    Chunk(
+                        id=f"{document.id}:{chunk_num}",
+                        content=content,
+                        metadata={
+                            **document.metadata,
+                            "chunk_index": chunk_num,
+                        },
+                    )
+                )
+                chunk_num += 1
+
+            if oversized_index is not None:
+                pieces = self._split_long_sentence(sentences[oversized_index])
+
+                for piece in pieces:
+                    chunks.append(
+                        Chunk(
+                            id=f"{document.id}:{chunk_num}",
+                            content=piece,
+                            metadata={
+                                **document.metadata,
+                                "chunk_index": chunk_num,
+                            },
+                        )
+                    )
+                    chunk_num += 1
+
+                index = oversized_index + 1
+
+            elif closed_early:
+                index = max(index + 1, index + len(window) - self.overlap_sentences)
+
+            else:
+                index += self.max_sentences - self.overlap_sentences
+
         return chunks
 
 
