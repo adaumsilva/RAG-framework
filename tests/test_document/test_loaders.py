@@ -6,7 +6,12 @@ import types
 
 import pytest
 
-from ragframework.document.loaders import MarkdownLoader, PDFLoader, TextFileLoader
+from ragframework.document.loaders import (
+    DocxLoader,
+    MarkdownLoader,
+    PDFLoader,
+    TextFileLoader,
+)
 from ragframework.exceptions import LoaderError
 
 
@@ -47,6 +52,63 @@ class TestMarkdownLoader:
         loader = MarkdownLoader()
         with pytest.raises(LoaderError):
             loader.load("/no/such/file.md")
+
+
+class TestDocxLoader:
+    def test_loads_paragraphs(self, tmp_path):
+        from docx import Document as DocxDocument
+
+        docx_path = tmp_path / "doc.docx"
+
+        doc = DocxDocument()
+        doc.add_paragraph("First paragraph")
+        doc.add_paragraph("")
+        doc.add_paragraph("Second paragraph")
+        doc.save(docx_path)
+
+        loader = DocxLoader()
+        docs = loader.load(str(docx_path))
+
+        assert len(docs) == 2
+        assert docs[0].content == "First paragraph"
+        assert docs[1].content == "Second paragraph"
+        assert docs[0].metadata["format"] == "docx"
+        assert docs[0].metadata["paragraph_number"] == 1
+        assert docs[1].metadata["paragraph_number"] == 2
+
+    def test_loads_whole_file(self, tmp_path):
+        from docx import Document as DocxDocument
+
+        docx_path = tmp_path / "doc.docx"
+
+        doc = DocxDocument()
+        doc.add_paragraph("First paragraph")
+        doc.add_paragraph("Second paragraph")
+        doc.save(docx_path)
+
+        loader = DocxLoader(split_paragraphs=False)
+        docs = loader.load(str(docx_path))
+
+        assert len(docs) == 1
+        assert "First paragraph" in docs[0].content
+        assert "Second paragraph" in docs[0].content
+        assert docs[0].metadata["format"] == "docx"
+        assert docs[0].metadata["split_paragraphs"] is False
+
+    def test_missing_file_raises(self):
+        loader = DocxLoader()
+
+        with pytest.raises(LoaderError, match="File not found"):
+            loader.load("/nonexistent/path/file.docx")
+
+    def test_invalid_docx_raises(self, tmp_path):
+        docx_path = tmp_path / "invalid.docx"
+        docx_path.write_text("This is not a valid DOCX file.", encoding="utf-8")
+
+        loader = DocxLoader()
+
+        with pytest.raises(LoaderError, match="Could not read DOCX file"):
+            loader.load(str(docx_path))
 
 
 def test_pdf_loader_requires_pypdf(tmp_path, monkeypatch):
