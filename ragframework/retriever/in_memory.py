@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import numpy as np
@@ -9,6 +10,8 @@ import numpy as np
 from ragframework.base import Chunk, Retriever
 from ragframework.exceptions import RetrieverError
 from ragframework.utils.vectors import validate_vector
+
+logger = logging.getLogger(__name__)
 
 
 class InMemoryRetriever(Retriever):
@@ -58,6 +61,11 @@ class InMemoryRetriever(Retriever):
         self._matrix = matrix
         self._dimension = expected_dimension
         self._chunks.extend(chunks)
+        logger.debug(
+            "Added chunks count=%d dimension=%d",
+            len(chunks),
+            matrix.shape[1],
+        )
 
     def retrieve(self, query_embedding: list[float], top_k: int = 5) -> list[Chunk]:
         """Rank chunks by cosine similarity.

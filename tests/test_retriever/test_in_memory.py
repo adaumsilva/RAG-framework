@@ -1,5 +1,7 @@
 """Tests for InMemoryRetriever."""
 
+import logging
+
 import pytest
 
 from ragframework.base import Chunk
@@ -21,6 +23,18 @@ class TestInMemoryRetriever:
         r = InMemoryRetriever()
         r.add(embedded_chunks)
         assert len(r) == len(embedded_chunks)
+
+    def test_add_logs_count_and_dimension(self, embedded_chunks, caplog):
+        retriever = InMemoryRetriever()
+        chunks = embedded_chunks[:2]
+
+        with caplog.at_level(
+            logging.DEBUG,
+            logger="ragframework.retriever.in_memory",
+        ):
+            retriever.add(chunks)
+
+        assert "Added chunks count=2 dimension=16" in caplog.text
 
     def test_retrieve_top_k_limited(self, embedded_chunks):
         r = InMemoryRetriever()

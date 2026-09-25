@@ -1,5 +1,6 @@
 """Tests for ChromaRetriever."""
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -60,6 +61,24 @@ def test_add_and_retrieve():
     assert results[0].id == "chunk-1"
     assert results[0].content == "Content chunk-1"
     assert results[0].metadata["source"] == "test.txt"
+
+
+def test_add_logs_count_and_dimension(caplog):
+    retriever = ChromaRetriever(
+        collection_name="test_add_logging",
+    )
+    chunks = [
+        make_chunk("log-1", [1.0, 0.0, 0.0]),
+        make_chunk("log-2", [0.0, 1.0, 0.0]),
+    ]
+
+    with caplog.at_level(
+        logging.DEBUG,
+        logger="ragframework.retriever.chroma",
+    ):
+        retriever.add(chunks)
+
+    assert "Added chunks count=2 dimension=3" in caplog.text
 
 
 def test_retrieve_top_k_limited():
