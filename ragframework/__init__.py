@@ -1,5 +1,7 @@
 """RAG Framework — a modular, extensible Python framework for RAG pipelines."""
 
+import logging
+
 from ragframework.base import (
     Chunk,
     Document,
@@ -13,6 +15,8 @@ from ragframework.base import (
 )
 from ragframework.config import RAGConfig
 from ragframework.pipeline.rag import RAGPipeline
+
+logging.getLogger("ragframework").addHandler(logging.NullHandler())
 
 __version__ = "0.2.0"
 __all__ = [

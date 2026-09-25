@@ -174,7 +174,17 @@ The example demonstrates the complete RAG workflow:
 
 6\. Generate an answer from the retrieved context.
 
+## Logging
 
+RAG Framework uses Python's standard-library logging and is silent by default.
+Enable pipeline stage summaries with:
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO)
+```
+
+Use `logging.DEBUG` to include per-batch embedding and retriever indexing details.
 
 \## Building a Pipeline
 
