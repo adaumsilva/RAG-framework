@@ -19,8 +19,13 @@ class FixedSizeChunker(TextChunker):
     """
 
     def __init__(self, chunk_size: int = 512, chunk_overlap: int = 64) -> None:
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if chunk_overlap < 0:
+            raise ValueError("chunk_overlap must be non-negative")
         if chunk_overlap >= chunk_size:
             raise ValueError("chunk_overlap must be less than chunk_size")
+
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
@@ -71,6 +76,10 @@ class SentenceChunker(TextChunker):
         overlap_sentences: int = 1,
         max_chars: int | None = None,
     ) -> None:
+        if max_sentences <= 0:
+            raise ValueError("max_sentences must be positive")
+        if overlap_sentences < 0:
+            raise ValueError("overlap_sentences must be non-negative")
         if overlap_sentences >= max_sentences:
             raise ValueError("overlap_sentences must be less than max_sentences")
         if max_chars is not None and max_chars <= 0:
@@ -226,6 +235,13 @@ class RecursiveChunker(TextChunker):
         )
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+
+    @classmethod
+    def from_config(cls, config: RAGConfig) -> RecursiveChunker:
+        return cls(
+            chunk_size=config.chunk_size,
+            chunk_overlap=config.chunk_overlap,
+        )
 
     def chunk(self, document: Document) -> list[Chunk]:
         if not document.content:
