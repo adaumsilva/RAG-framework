@@ -108,6 +108,28 @@ class TestRAGPipeline:
         assert response.answer
         assert isinstance(response.source_chunks, list)
 
+    def test_query_logs_retrieval_and_generation_summaries(self, pipeline, tmp_text_file, caplog):
+        pipeline.ingest(tmp_text_file)
+        caplog.clear()
+
+        with caplog.at_level(logging.INFO, logger="ragframework.pipeline.rag"):
+            pipeline.query("test", top_k=1)
+
+        messages = [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == "ragframework.pipeline.rag"
+        ]
+
+        assert any(
+            message.startswith("Retrieved chunks top_k=1 retrieved=1 retrieval_seconds=")
+            for message in messages
+        )
+        assert any(
+            message.startswith("Generated answer chunks=1 generation_seconds=")
+            for message in messages
+        )
+
     def test_query_top_k_respected(self, pipeline, tmp_text_file):
         pipeline.ingest(tmp_text_file)
         response = pipeline.query("test")

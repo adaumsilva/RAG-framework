@@ -262,10 +262,20 @@ class RAGPipeline:
         if retrieve_k is None:
             retrieve_k = final_top_k * 4 if self.reranker is not None else final_top_k
 
+        retrieval_start = time.perf_counter()
+
         try:
             chunks = self.retriever.retrieve(query_embedding, top_k=retrieve_k)
         except Exception as exc:
             raise PipelineError(f"Retrieval failed: {exc}") from exc
+
+        retrieval_seconds = time.perf_counter() - retrieval_start
+        logger.info(
+            "Retrieved chunks top_k=%d retrieved=%d retrieval_seconds=%.6f",
+            final_top_k,
+            len(chunks),
+            retrieval_seconds,
+        )
 
         if self.reranker is not None:
             try:
@@ -275,9 +285,18 @@ class RAGPipeline:
         else:
             chunks = chunks[:final_top_k]
 
+        generation_start = time.perf_counter()
+
         try:
             answer = self.generator.generate(query, chunks)
         except Exception as exc:
             raise PipelineError(f"Generation failed: {exc}") from exc
+
+        generation_seconds = time.perf_counter() - generation_start
+        logger.info(
+            "Generated answer chunks=%d generation_seconds=%.6f",
+            len(chunks),
+            generation_seconds,
+        )
 
         return RAGResponse(answer=answer, source_chunks=chunks, query=query)
