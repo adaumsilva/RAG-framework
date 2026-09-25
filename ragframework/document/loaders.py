@@ -18,22 +18,34 @@ def _make_id(source: str) -> str:
     return hashlib.md5(source.encode()).hexdigest()[:12]
 
 
+def _read_text_file(path: Path, encoding: str, errors: str = "strict") -> str:
+    """Read a text file and normalize filesystem/encoding errors."""
+    if not path.exists():
+        raise LoaderError(f"File not found: {path}")
+    if not path.is_file():
+        raise LoaderError(f"Not a file: {path}")
+
+    try:
+        return path.read_text(encoding=encoding, errors=errors)
+    except UnicodeDecodeError as exc:
+        raise LoaderError(f"Could not decode {path} using encoding {encoding!r}: {exc}") from exc
+    except LookupError as exc:
+        raise LoaderError(f"Unknown encoding {encoding!r} for {path}: {exc}") from exc
+    except OSError as exc:
+        raise LoaderError(f"Could not read {path}: {exc}") from exc
+
+
 class TextFileLoader(DocumentLoader):
     """Load a plain-text (``.txt``) file as a single :class:`Document`."""
 
-    def __init__(self, encoding: str = "utf-8") -> None:
+    def __init__(self, encoding: str = "utf-8", errors: str = "strict") -> None:
         self.encoding = encoding
+        self.errors = errors
 
     def load(self, source: str) -> list[Document]:
         path = Path(source)
-        if not path.exists():
-            raise LoaderError(f"File not found: {source}")
-        if not path.is_file():
-            raise LoaderError(f"Not a file: {source}")
-        try:
-            content = path.read_text(encoding=self.encoding)
-        except OSError as exc:
-            raise LoaderError(f"Could not read {source}: {exc}") from exc
+        content = _read_text_file(path, self.encoding, self.errors)
+
         return [
             Document(
                 id=_make_id(source),
@@ -51,19 +63,14 @@ class MarkdownLoader(DocumentLoader):
     strips front-matter or renders HTML would make a great contribution.
     """
 
-    def __init__(self, encoding: str = "utf-8") -> None:
+    def __init__(self, encoding: str = "utf-8", errors: str = "strict") -> None:
         self.encoding = encoding
+        self.errors = errors
 
     def load(self, source: str) -> list[Document]:
         path = Path(source)
-        if not path.exists():
-            raise LoaderError(f"File not found: {source}")
-        if not path.is_file():
-            raise LoaderError(f"Not a file: {source}")
-        try:
-            content = path.read_text(encoding=self.encoding)
-        except OSError as exc:
-            raise LoaderError(f"Could not read {source}: {exc}") from exc
+        content = _read_text_file(path, self.encoding, self.errors)
+
         return [
             Document(
                 id=_make_id(source),

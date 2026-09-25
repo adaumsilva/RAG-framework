@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `InMemoryRetriever.retrieve()` now returns an empty list for non-positive `top_k` values and raises `RetrieverError` for non-integer or boolean `top_k` values (closes #23).
 - Enforce LF line endings with `.gitattributes` across platforms while keeping PNG files binary (closes #48).
+- `TextFileLoader` and `MarkdownLoader` now convert Unicode decoding and unknown encoding errors to `LoaderError`, with configurable text decoding error handling (closes #24).
 - `InMemoryRetriever` now raises `RetrieverError` for invalid vectors and dimension mismatches, validates complete batches before updating stored data, and treats empty batches as a no-op. Vector validation and normalization are shared with `FAISSRetriever` (closes #26).
 
 ## [0.2.0] - 2026-09-19
