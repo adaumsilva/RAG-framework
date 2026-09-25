@@ -60,11 +60,16 @@ class InMemoryRetriever(Retriever):
         self._chunks.extend(chunks)
 
     def retrieve(self, query_embedding: list[float], top_k: int = 5) -> list[Chunk]:
-        """Rank chunks by cosine similarity, returning an empty list for an empty index.
+        """Rank chunks by cosine similarity.
 
-        Invalid query vectors or dimensions raise ``RetrieverError``.
+        Non-positive ``top_k`` values return an empty list.
+        An empty index also returns an empty list. Invalid query vectors
+        or dimensions raise ``RetrieverError``. Non-integer / bool
+        ``top_k`` raises ``RetrieverError``.
         """
-        if not self._chunks or self._matrix is None:
+        if not isinstance(top_k, int) or isinstance(top_k, bool):
+            raise RetrieverError("top_k must be an integer.")
+        if top_k <= 0 or not self._chunks or self._matrix is None:
             return []
         q = validate_vector(query_embedding, "Query embedding")
         if q.shape[0] != self._dimension:
