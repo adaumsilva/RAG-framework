@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from ragframework.base import Chunk, Embedder, Generator, Reranker
@@ -64,9 +66,41 @@ class ShortSecondCallEmbedder(Embedder):
 
 
 class TestRAGPipeline:
+    def test_ingest_logs_stage_summaries(self, pipeline, tmp_text_file, caplog):
+        with caplog.at_level(logging.INFO, logger="ragframework.pipeline.rag"):
+            count = pipeline.ingest(tmp_text_file)
+
+        messages = [
+            record.getMessage()
+            for record in caplog.records
+            if record.name == "ragframework.pipeline.rag"
+        ]
+
+        assert count == 1
+        assert f"Loaded documents source={tmp_text_file} documents=1" in messages
+        assert f"Produced chunks source={tmp_text_file} chunks=1" in messages
+        assert any(
+            message.startswith(
+                f"Embedded chunks source={tmp_text_file} " "chunks=1 embedding_seconds="
+            )
+            for message in messages
+        )
+        assert f"Indexed chunks source={tmp_text_file} indexed=1" in messages
+
     def test_ingest_returns_chunk_count(self, pipeline, tmp_text_file):
         count = pipeline.ingest(tmp_text_file)
         assert count > 0
+
+    def test_ingest_warns_when_source_produces_no_chunks(self, pipeline, tmp_path, caplog):
+        empty_file = tmp_path / "empty.txt"
+        empty_file.write_text("", encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING, logger="ragframework.pipeline.rag"):
+            count = pipeline.ingest(str(empty_file))
+
+        assert count == 0
+        assert str(empty_file) in caplog.text
+        assert "no chunks" in caplog.text.lower()
 
     def test_query_returns_response(self, pipeline, tmp_text_file):
         pipeline.ingest(tmp_text_file)

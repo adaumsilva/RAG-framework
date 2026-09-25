@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from collections.abc import Iterable
 
 from ragframework.base import (
@@ -17,6 +19,8 @@ from ragframework.base import (
 from ragframework.config import RAGConfig
 from ragframework.document.chunkers import FixedSizeChunker
 from ragframework.exceptions import PipelineError
+
+logger = logging.getLogger(__name__)
 
 
 class RAGPipeline:
@@ -128,6 +132,12 @@ class RAGPipeline:
         except Exception as exc:
             raise PipelineError(f"Loading failed for '{source}': {exc}") from exc
 
+        logger.info(
+            "Loaded documents source=%s documents=%d",
+            source,
+            len(documents),
+        )
+
         all_chunks: list[Chunk] = []
         for doc in documents:
             try:
@@ -136,17 +146,41 @@ class RAGPipeline:
                 raise PipelineError(f"Chunking failed for document '{doc.id}': {exc}") from exc
             all_chunks.extend(chunks)
 
+        logger.info(
+            "Produced chunks source=%s chunks=%d",
+            source,
+            len(all_chunks),
+        )
+
         if not all_chunks:
+            logger.warning("Ingest produced no chunks for source %s", source)
             return 0
 
         batch_size = self.config.embed_batch_size
         embeddings: list[list[float]] = []
+        embedding_start = time.perf_counter()
+
         try:
             for start in range(0, len(all_chunks), batch_size):
                 batch = all_chunks[start : start + batch_size]
-                embeddings.extend(self.embedder.embed([c.content for c in batch]))
+                batch_embeddings = self.embedder.embed([chunk.content for chunk in batch])
+                embeddings.extend(batch_embeddings)
+                logger.debug(
+                    "Embedded batch source=%s batch=%d chunks=%d",
+                    source,
+                    start // batch_size + 1,
+                    len(batch),
+                )
         except Exception as exc:
             raise PipelineError(f"Embedding failed: {exc}") from exc
+
+        embedding_seconds = time.perf_counter() - embedding_start
+        logger.info(
+            "Embedded chunks source=%s chunks=%d embedding_seconds=%.6f",
+            source,
+            len(all_chunks),
+            embedding_seconds,
+        )
 
         for embedding in embeddings:
             self._validate_embedding_dimension(embedding)
@@ -158,6 +192,12 @@ class RAGPipeline:
             self.retriever.add(all_chunks)
         except Exception as exc:
             raise PipelineError(f"Indexing failed: {exc}") from exc
+
+        logger.info(
+            "Indexed chunks source=%s indexed=%d",
+            source,
+            len(all_chunks),
+        )
 
         return len(all_chunks)
 
