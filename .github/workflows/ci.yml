@@ -25,7 +25,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -e ".[dev,faiss,chromadb]"
+        run: pip install -e ".[dev,faiss,chromadb,docx]"
 
       - name: Lint with ruff
         run: ruff check ragframework/
