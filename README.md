@@ -210,16 +210,19 @@ Community contributions are the engine that drives this roadmap. Pick up a [Good
 
 | Priority | Item | Status |
 |----------|------|--------|
-| High | PDF document loader | Open |
-| High | DOCX document loader | Open |
-| High | OpenAI embeddings integration | Open |
-| High | HuggingFace Sentence Transformers | Open |
-| High | OpenAI / Anthropic generator | In Progress |
-| Medium | FAISS vector store retriever | Open |
-| Medium | ChromaDB retriever integration | Open |
-| Medium | Semantic / recursive chunker | Open |
-| Medium | Async pipeline support | Open |
-| Low | Jupyter notebook examples | Open |
+| High | DOCX document loader ([#2](https://github.com/adaumsilva/RAG-framework/issues/2)) | Open |
+| High | OpenAI embeddings integration ([#6](https://github.com/adaumsilva/RAG-framework/issues/6)) | Open |
+| High | PDF document loader ([#1](https://github.com/adaumsilva/RAG-framework/issues/1)) | Done (0.2.0) |
+| High | HuggingFace Sentence Transformers embedder ([#7](https://github.com/adaumsilva/RAG-framework/issues/7)) | Done (0.2.0) |
+| High | OpenAI generator ([#8](https://github.com/adaumsilva/RAG-framework/issues/8)) | Done (0.3.0) |
+| High | Anthropic generator ([#20](https://github.com/adaumsilva/RAG-framework/issues/20)) | Done (0.2.0) |
+| Medium | FAISS vector store retriever ([#4](https://github.com/adaumsilva/RAG-framework/issues/4)) | Done (0.2.0) |
+| Medium | ChromaDB retriever integration ([#5](https://github.com/adaumsilva/RAG-framework/issues/5)) | Done (0.2.0) |
+| Medium | Recursive chunker ([#3](https://github.com/adaumsilva/RAG-framework/issues/3)) | Done (0.2.0) |
+| Medium | Async pipeline support ([#9](https://github.com/adaumsilva/RAG-framework/issues/9)) | Done (0.2.0) |
+| Medium | Optional reranking stage ([#38](https://github.com/adaumsilva/RAG-framework/issues/38)) | Done (0.2.0) |
+| Medium | HTML, CSV and JSONL loaders ([#35](https://github.com/adaumsilva/RAG-framework/issues/35), [#36](https://github.com/adaumsilva/RAG-framework/issues/36)) | Done (0.3.0) |
+| Low | Jupyter notebook examples ([#10](https://github.com/adaumsilva/RAG-framework/issues/10)) | Done (0.2.0) |
 
 ---
 

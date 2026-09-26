@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Structured logging for ingest, query, and retriever stages, including timing and empty-ingest warnings (closes #41).
+
+## [0.3.0] - 2026-09-25
+
+### Added
 - PEP 561 `py.typed` marker in source distributions and wheels so downstream type checkers can use the package's annotations (closes #47).
 - Add an optional `max_chars` limit to `SentenceChunker`.
 - `RAGConfig.embed_batch_size` so `RAGPipeline.ingest()` embeds chunks in bounded batches (closes #42)
@@ -17,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `OpenAIGenerator` for OpenAI-powered grounded answer generation (closes #8)
 - `CSVLoader` and `JSONLLoader` for loading selected record fields into documents with configurable IDs, metadata, encoding, and row/line-specific errors, using only the standard library (closes #36).
 - `HTMLLoader` for extracting readable text and title metadata from local HTML files and HTTP(S) URLs with no optional dependencies (closes #35).
+
+### Changed
+- README roadmap updated to reflect shipped components.
+
 ### Fixed
 - `InMemoryRetriever.retrieve()` now returns an empty list for non-positive `top_k` values and raises `RetrieverError` for non-integer or boolean `top_k` values (closes #23).
 - Enforce LF line endings with `.gitattributes` across platforms while keeping PNG files binary (closes #48).
@@ -63,6 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Issue templates, PR template, and contributor guide
 - 10 curated Good First Issues for new contributors
 
-[Unreleased]: https://github.com/adaumsilva/RAG-framework/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/adaumsilva/RAG-framework/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/adaumsilva/RAG-framework/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/adaumsilva/RAG-framework/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/adaumsilva/RAG-framework/releases/tag/v0.1.0
