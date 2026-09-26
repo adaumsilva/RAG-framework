@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `TokenChunker` for token-level chunking using tiktoken with a new `[tokens]` optional extra (closes #44)
+
 ## [0.3.0] - 2026-09-25
 
 ### Added

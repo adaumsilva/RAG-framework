@@ -343,3 +343,76 @@ class RecursiveChunker(TextChunker):
             final_chunks.append("".join(current_chunk_pieces))
 
         return final_chunks
+
+
+class TokenChunker(TextChunker):
+    """Split text into chunks measured in tokens using tiktoken.
+    Args:
+        chunk_tokens: Maximum number of tokens per chunk.
+        overlap_tokens: Number of overlapping tokens between adjacent chunks.
+        encoding_name: Name of the tiktoken encoding to use.
+    Raises:
+        ImportError: If the ``tokens`` optional dependency is not installed.
+    """
+
+    def __init__(
+        self,
+        chunk_tokens: int = 256,
+        overlap_tokens: int = 32,
+        encoding_name: str = "cl100k_base",
+    ) -> None:
+        # --- Guarded import (same pattern as HuggingFaceEmbedder) ---
+        try:
+            import tiktoken
+        except ImportError as exc:
+            raise ImportError(
+                "Token chunking requires 'ragframework[tokens]'. "
+                "Install it with: pip install ragframework[tokens]"
+            ) from exc
+        # --- Validation (same rules as RecursiveChunker) ---
+        if chunk_tokens <= 0:
+            raise ValueError("chunk_tokens must be positive")
+        if overlap_tokens < 0:
+            raise ValueError("overlap_tokens must be non-negative")
+
+        if overlap_tokens >= chunk_tokens:
+            raise ValueError("overlap_tokens must be less than chunk_tokens")
+
+        self.chunk_tokens = chunk_tokens
+        self.overlap_tokens = overlap_tokens
+        self.encoding_name = encoding_name
+        self._encoding = tiktoken.get_encoding(encoding_name)
+
+    def chunk(self, document: Document) -> list[Chunk]:
+        if not document.content:
+            return []
+
+        # encode the full text once into token IDs
+
+        all_tokens = self._encoding.encode(document.content)
+        chunks: list[Chunk] = []
+        step = self.chunk_tokens - self.overlap_tokens
+        index = 0
+        chunk_num = 0
+
+        while index < len(all_tokens):
+            # slice the token window
+            window = all_tokens[index : index + self.chunk_tokens]
+            # decode back to text
+            chunk_text = self._encoding.decode(window)
+            token_count = len(window)
+
+            chunks.append(
+                Chunk(
+                    id=f"{document.id}:{chunk_num}",
+                    content=chunk_text,
+                    metadata={
+                        **document.metadata,
+                        "chunk_index": chunk_num,
+                        "token_count": token_count,
+                    },
+                )
+            )
+            chunk_num += 1
+            index += step
+        return chunks

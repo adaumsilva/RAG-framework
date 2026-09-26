@@ -1,5 +1,9 @@
 """Tests for built-in text chunkers."""
 
+import builtins
+import sys
+import types
+
 import pytest
 
 from ragframework.base import Document
@@ -243,3 +247,104 @@ class TestRecursiveChunker:
         )
         chunks = chunker.chunk(doc)
         assert [len(c.content) for c in chunks] == [6, 6, 6]
+
+
+# --------------- Fake tiktoken for CI ---------------
+
+
+class FakeEncoding:
+    """Trivially encodes each character as one token (its ordinal)."""
+
+    def encode(self, text: str) -> list[int]:
+        return list(text.encode("utf-8"))
+
+    def decode(self, tokens: list[int]) -> str:
+        return bytes(tokens).decode("utf-8")
+
+
+@pytest.fixture
+def fake_tiktoken(monkeypatch):
+    """Inject a fake tiktoken module so tests don't need a real download."""
+    module = types.ModuleType("tiktoken")
+    module.get_encoding = lambda name: FakeEncoding()
+    monkeypatch.setitem(sys.modules, "tiktoken", module)
+
+
+class TestTokenChunker:
+    def test_basic_chunking(self, fake_tiktoken):
+        from ragframework.document.chunkers import TokenChunker
+
+        doc = Document(id="d1", content="A" * 100, metadata={})
+        chunker = TokenChunker(chunk_tokens=30, overlap_tokens=5)
+        chunks = chunker.chunk(doc)
+
+        assert len(chunks) > 1
+        # No chunk should exceed the token limit
+        for c in chunks:
+            assert c.metadata["token_count"] <= 30
+
+    def test_chunk_ids_follow_convention(self, fake_tiktoken):
+        from ragframework.document.chunkers import TokenChunker
+
+        doc = Document(id="doc1", content="Hello world this is a test", metadata={"src": "test"})
+        chunker = TokenChunker(chunk_tokens=10, overlap_tokens=2)
+        chunks = chunker.chunk(doc)
+
+        for i, c in enumerate(chunks):
+            assert c.id == f"doc1:{i}"
+            assert c.metadata["chunk_index"] == i
+            assert c.metadata["src"] == "test"
+            assert "token_count" in c.metadata
+
+    def test_empty_doc_returns_empty(self, fake_tiktoken):
+        from ragframework.document.chunkers import TokenChunker
+
+        doc = Document(id="x", content="", metadata={})
+        chunker = TokenChunker(chunk_tokens=10, overlap_tokens=0)
+        assert chunker.chunk(doc) == []
+
+    def test_short_doc_single_chunk(self, fake_tiktoken):
+        from ragframework.document.chunkers import TokenChunker
+
+        doc = Document(id="x", content="Hi", metadata={})
+        chunker = TokenChunker(chunk_tokens=256, overlap_tokens=0)
+        chunks = chunker.chunk(doc)
+        assert len(chunks) == 1
+        assert chunks[0].content == "Hi"
+        assert chunks[0].metadata["token_count"] == 2  # 'H' and 'i' in our fake
+
+    def test_validation_errors(self, fake_tiktoken):
+        from ragframework.document.chunkers import TokenChunker
+
+        with pytest.raises(ValueError, match="chunk_tokens must be positive"):
+            TokenChunker(chunk_tokens=0)
+        with pytest.raises(ValueError, match="overlap_tokens must be non-negative"):
+            TokenChunker(chunk_tokens=10, overlap_tokens=-1)
+        with pytest.raises(ValueError, match="overlap_tokens must be less than chunk_tokens"):
+            TokenChunker(chunk_tokens=10, overlap_tokens=10)
+
+    def test_no_chunk_exceeds_token_limit(self, fake_tiktoken):
+        from ragframework.document.chunkers import TokenChunker
+
+        doc = Document(id="d1", content="abcdefghijklmnopqrstuvwxyz" * 10, metadata={})
+        chunker = TokenChunker(chunk_tokens=50, overlap_tokens=10)
+        chunks = chunker.chunk(doc)
+
+        for c in chunks:
+            assert c.metadata["token_count"] <= 50
+
+    def test_missing_tiktoken_gives_helpful_message(self, monkeypatch):
+        real_import = builtins.__import__
+
+        def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "tiktoken":
+                raise ImportError("No module named 'tiktoken'")
+            return real_import(name, globals, locals, fromlist, level)
+
+        monkeypatch.delitem(sys.modules, "tiktoken", raising=False)
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+
+        from ragframework.document.chunkers import TokenChunker
+
+        with pytest.raises(ImportError, match=r"ragframework\[tokens\]"):
+            TokenChunker()

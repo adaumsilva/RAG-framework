@@ -36,6 +36,7 @@ anthropic = ["anthropic>=0.25"]
 huggingface = ["sentence-transformers>=2.7"]
 chromadb = ["chromadb>=0.5"]
 faiss = ["faiss-cpu>=1.8"]
+tokens = ["tiktoken>=0.7"]
 all = [
     "ragframework[pdf]",
     "ragframework[docx]",
@@ -44,6 +45,7 @@ all = [
     "ragframework[huggingface]",
     "ragframework[chromadb]",
     "ragframework[faiss]",
+    "ragframework[tokens]",
 ]
 dev = [
     "pytest>=8.0",
