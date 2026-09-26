@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-25
+
 ### Added
 
 - `DocxLoader` with support for per-paragraph and whole-file modes (closes #2)
@@ -71,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Issue templates, PR template, and contributor guide
 - 10 curated Good First Issues for new contributors
 
-[Unreleased]: https://github.com/adaumsilva/RAG-framework/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/adaumsilva/RAG-framework/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/adaumsilva/RAG-framework/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/adaumsilva/RAG-framework/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/adaumsilva/RAG-framework/releases/tag/v0.1.0
