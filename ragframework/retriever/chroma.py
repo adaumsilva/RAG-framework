@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 from ragframework.base import Chunk, Retriever
 from ragframework.exceptions import RetrieverError
+
+logger = logging.getLogger(__name__)
 
 
 class ChromaRetriever(Retriever):
@@ -75,6 +78,12 @@ class ChromaRetriever(Retriever):
             )
         except Exception as exc:
             raise RetrieverError(f"Failed to add chunks to ChromaDB: {exc}") from exc
+
+        logger.debug(
+            "Added chunks count=%d dimension=%d",
+            len(chunks),
+            len(embeddings[0]),
+        )
 
     def retrieve(
         self,

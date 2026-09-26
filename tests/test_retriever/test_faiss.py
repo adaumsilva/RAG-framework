@@ -1,5 +1,6 @@
 """Tests for the FAISS-backed retriever."""
 
+import logging
 import subprocess
 import sys
 
@@ -49,6 +50,22 @@ def test_batches_append_without_replacing_existing_chunks() -> None:
 
     assert len(retriever) == 2
     assert retriever.retrieve([0.0, 1.0, 0.0], top_k=2)[0] is second
+
+
+def test_add_logs_count_and_dimension(caplog) -> None:
+    retriever = FAISSRetriever()
+    chunks = [
+        make_chunk("first", [1.0, 0.0, 0.0]),
+        make_chunk("second", [0.0, 1.0, 0.0]),
+    ]
+
+    with caplog.at_level(
+        logging.DEBUG,
+        logger="ragframework.retriever.faiss",
+    ):
+        retriever.add(chunks)
+
+    assert "Added chunks count=2 dimension=3" in caplog.text
 
 
 def test_hnsw_index_uses_configured_parameters_and_inner_product() -> None:
