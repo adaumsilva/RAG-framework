@@ -41,16 +41,84 @@ def test_real_faiss_search_uses_cosine_similarity_and_preserves_chunks() -> None
     assert results[0].metadata == {"source": "north"}
 
 
-def test_batches_append_without_replacing_existing_chunks() -> None:
+def test_batches_upsert_without_duplicate_ids() -> None:
     retriever = FAISSRetriever(ef_search=64)
+
     first = make_chunk("first", [1.0, 0.0, 0.0])
     second = make_chunk("second", [0.0, 1.0, 0.0])
+    replacement = make_chunk("first", [0.0, 1.0, 0.0])
+
     retriever.add([first])
     retriever.add([second])
+    retriever.add([replacement])
 
     assert len(retriever) == 2
-    assert retriever.retrieve([0.0, 1.0, 0.0], top_k=2)[0] is second
+    assert retriever._chunks[0] is replacement
+    assert retriever._chunks[1] is second
 
+    results = retriever.retrieve([0.0, 1.0, 0.0], top_k=2)
+    assert len(results) == 2
+    assert {chunk.id for chunk in results} == {"first", "second"}
+    assert retriever._chunks[0] is replacement
+
+def test_add_batch_replaces_existing_and_adds_new_chunks() -> None:
+    retriever = FAISSRetriever(ef_search=64)
+
+    first = make_chunk("first", [1.0, 0.0, 0.0])
+    second = make_chunk("second", [0.0, 1.0, 0.0])
+    replacement = make_chunk("first", [0.0, 1.0, 0.0])
+    third = make_chunk("third", [1.0, 1.0, 0.0])
+
+    retriever.add([first, second])
+    retriever.add([replacement, third])
+
+    results = retriever.retrieve([0.0, 1.0, 0.0], top_k=3)
+
+    assert len(results) == 3
+    assert {chunk.id for chunk in results} == {"first", "second", "third"}
+    assert retriever._chunks[0] is replacement
+    assert retriever._chunks[1] is second
+    assert retriever._chunks[2] is third
+
+def test_add_same_id_replaces_existing_chunk() -> None:
+    retriever = FAISSRetriever(ef_search=64)
+
+    old = make_chunk("same", [1.0, 0.0])
+    new = make_chunk("same", [0.0, 1.0])
+
+    retriever.add([old])
+    retriever.add([new])
+
+    assert len(retriever) == 1
+    assert retriever.retrieve([0.0, 1.0], top_k=1) == [new]
+    assert retriever.retrieve([0.0, 1.0], top_k=1)[0].content == new.content
+    assert retriever.retrieve([0.0, 1.0], top_k=1)[0].embedding == new.embedding
+
+
+
+def test_failed_upsert_preserves_existing_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    retriever = FAISSRetriever()
+    existing = make_chunk("existing", [1.0, 0.0])
+    retriever.add([existing])
+
+    def fail(_vectors: np.ndarray) -> None:
+        raise RuntimeError("native failure")
+
+    monkeypatch.setattr(retriever._index, "add", fail)
+
+    replacement = make_chunk("existing", [0.0, 1.0])
+
+    with pytest.raises(RetrieverError, match="failed to add") as exc_info:
+        retriever.add([replacement])
+
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+    assert len(retriever) == 1
+    assert retriever._chunks[0] is existing
+
+    results = retriever.retrieve([1.0, 0.0], top_k=1)
+    assert results == [existing]
 
 def test_add_logs_count_and_dimension(caplog) -> None:
     retriever = FAISSRetriever()
@@ -197,17 +265,29 @@ def test_faiss_add_failure_is_wrapped_without_extending_chunk_mapping(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     retriever = FAISSRetriever()
-    retriever.add([make_chunk("existing", [1.0, 0.0])])
+    existing = make_chunk("existing", [1.0, 0.0])
+    retriever.add([existing])
 
-    def fail(_vectors: np.ndarray) -> None:
+    original_add = faiss.IndexHNSWFlat.add
+
+    def fail(self: object, _vectors: np.ndarray) -> None:
         raise RuntimeError("native failure")
 
-    monkeypatch.setattr(retriever._index, "add", fail)
+    monkeypatch.setattr(faiss.IndexHNSWFlat, "add", fail)
+
     with pytest.raises(RetrieverError, match="failed to add") as exc_info:
         retriever.add([make_chunk("new", [0.0, 1.0])])
+
     assert len(retriever) == 1
-    assert retriever._chunks[0].id == "existing"
+    assert retriever._chunks[0] is existing
     assert isinstance(exc_info.value.__cause__, RuntimeError)
+
+    # The original index is still usable.
+    assert retriever.retrieve([1.0, 0.0], top_k=1) == [existing]
+
+    # Keep the local binding intentionally referenced so linters don't
+    # complain if the implementation changes.
+    assert original_add is not None
 
 
 def test_missing_faiss_fails_only_when_backend_is_constructed() -> None:

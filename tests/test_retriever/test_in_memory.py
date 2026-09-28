@@ -172,3 +172,33 @@ class TestInMemoryRetriever:
 
         with pytest.raises(RetrieverError, match="top_k must be an integer"):
             r.retrieve([1.0, 0.0], top_k=True)
+
+    def test_add_same_id_replaces_existing_chunk(self):
+        r = InMemoryRetriever()
+
+        old = make_chunk("same", [1.0, 0.0])
+        new = make_chunk("same", [0.0, 1.0])
+
+        r.add([old])
+        r.add([new])
+
+        assert len(r) == 1
+        assert r.retrieve([0.0, 1.0], top_k=1) == [new]
+        assert r.retrieve([0.0, 1.0], top_k=1)[0].content == new.content
+        assert r.retrieve([0.0, 1.0], top_k=1)[0].embedding == new.embedding
+
+    def test_add_batch_replaces_existing_and_adds_new_chunks(self):
+        r = InMemoryRetriever()
+
+        first = make_chunk("first", [1.0, 0.0])
+        second = make_chunk("second", [0.0, 1.0])
+        replacement = make_chunk("first", [0.0, 1.0])
+        third = make_chunk("third", [1.0, 1.0])
+
+        r.add([first, second])
+        r.add([replacement, third])
+
+        assert len(r) == 3
+        assert r._chunks[0] is replacement
+        assert r._chunks[1] is second
+        assert r._chunks[2] is third

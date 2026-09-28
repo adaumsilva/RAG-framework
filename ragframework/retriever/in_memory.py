@@ -25,26 +25,31 @@ class InMemoryRetriever(Retriever):
     def __init__(self) -> None:
         self._chunks: list[Chunk] = []
         self._matrix: np.ndarray[Any, Any] | None = None  # shape (N, dim)
+        self._id_to_index: dict[str, int] = {}
         self._dimension: int | None = None
 
     def add(self, chunks: list[Chunk]) -> None:
-        """Validate and normalize a batch before changing the stored chunks.
+        """Validate and upsert a batch before changing the stored chunks.
 
         An empty batch is a no-op. Invalid vectors or inconsistent dimensions
-        raise ``RetrieverError`` without adding any part of the batch.
+        raise ``RetrieverError`` without adding or replacing any part of the
+        batch.
         """
         if not chunks:
             return
 
         expected_dimension = self._dimension
         vectors: list[np.ndarray[Any, np.dtype[np.float32]]] = []
+
         for chunk in chunks:
             if chunk.embedding is None:
                 raise RetrieverError(
                     f"Chunk '{chunk.id}' has no embedding. "
                     "Embed chunks before adding them to the retriever."
                 )
+
             vector = validate_vector(chunk.embedding, f"Chunk '{chunk.id}' embedding")
+
             if expected_dimension is None:
                 expected_dimension = int(vector.shape[0])
             elif vector.shape[0] != expected_dimension:
@@ -52,15 +57,54 @@ class InMemoryRetriever(Retriever):
                     f"Chunk '{chunk.id}' embedding has dimension {vector.shape[0]}; "
                     f"expected {expected_dimension}."
                 )
+
             vectors.append(vector)
 
         matrix = np.stack(vectors)
-        if self._matrix is not None:
-            matrix = np.concatenate((self._matrix, matrix))
 
-        self._matrix = matrix
+        # Build the initial index.
+        if self._matrix is None:
+            self._matrix = matrix
+            self._dimension = expected_dimension
+
+            for chunk in chunks:
+                self._id_to_index[chunk.id] = len(self._chunks)
+                self._chunks.append(chunk)
+
+            logger.debug(
+                "Added chunks count=%d dimension=%d",
+                len(chunks),
+                matrix.shape[1],
+            )
+            return
+
+        # Apply replacements and collect genuinely new chunks.
+        new_chunks: list[Chunk] = []
+        new_vectors: list[np.ndarray[Any, np.dtype[np.float32]]] = []
+
+        for chunk, vector in zip(chunks, vectors, strict=True):
+            existing_index = self._id_to_index.get(chunk.id)
+
+            if existing_index is not None:
+                self._chunks[existing_index] = chunk
+                self._matrix[existing_index] = vector
+            else:
+                new_chunks.append(chunk)
+                new_vectors.append(vector)
+
+        if new_chunks:
+            start_index = len(self._chunks)
+            self._chunks.extend(new_chunks)
+
+            self._matrix = np.concatenate(
+                (self._matrix, np.stack(new_vectors))
+            )
+
+            for offset, chunk in enumerate(new_chunks):
+                self._id_to_index[chunk.id] = start_index + offset
+
         self._dimension = expected_dimension
-        self._chunks.extend(chunks)
+
         logger.debug(
             "Added chunks count=%d dimension=%d",
             len(chunks),

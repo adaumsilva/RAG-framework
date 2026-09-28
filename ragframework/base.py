@@ -119,13 +119,18 @@ class Retriever(ABC):
 
     @abstractmethod
     def add(self, chunks: list[Chunk]) -> None:
-        """Add *chunks* to the index.
+        """Add or replace *chunks* in the index.
+
+        Adding a chunk whose :attr:`~Chunk.id` already exists replaces the
+        previously indexed chunk with the same ID. Retrievers therefore expose
+        upsert semantics: repeated ingestion of the same chunk ID does not
+        increase the number of indexed chunks.
 
         Chunks must have their :attr:`~Chunk.embedding` set before calling
         this method.
 
         Args:
-            chunks: Chunks to index.
+            chunks: Chunks to add or replace in the index.
         """
 
     @abstractmethod
