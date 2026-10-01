@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RecursiveChunker.from_config()` for creating a chunker from pipeline configuration (closes #25).
 
 ### Fixed
+- Repair the Getting Started guide's Markdown formatting and link it from the README and contributor guide (closes #30).
 - `TextFileLoader` and `MarkdownLoader` now convert Unicode decoding and unknown encoding errors to `LoaderError`, with configurable text decoding error handling (closes #24).
 - Validate chunker size and overlap parameters in `FixedSizeChunker` and `SentenceChunker` (closes #25).
 
