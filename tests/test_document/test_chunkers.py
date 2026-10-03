@@ -3,6 +3,7 @@
 import builtins
 import sys
 import types
+from typing import Any
 
 import pytest
 
@@ -12,7 +13,6 @@ from ragframework.document.chunkers import (
     RecursiveChunker,
     SentenceChunker,
 )
-from typing import Any
 
 
 def test_recursive_chunker_from_config():
