@@ -8,15 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
 - `TokenChunker` for token-level chunking using tiktoken with a new `[tokens]` optional extra (closes #44)
-
 - Structured logging for ingest, query, and retriever stages, including timing and empty-ingest warnings (closes #41).
 - `RecursiveChunker.from_config()` for creating a chunker from pipeline configuration (closes #25).
 
 ### Fixed
+- Optimize `InMemoryRetriever.add()` to normalize only newly added vectors and avoid rebuilding the full matrix on every call (closes #27).
 - `TextFileLoader` and `MarkdownLoader` now convert Unicode decoding and unknown encoding errors to `LoaderError`, with configurable text decoding error handling (closes #24).
 - Validate chunker size and overlap parameters in `FixedSizeChunker` and `SentenceChunker` (closes #25).
+
 
 ## [0.3.0] - 2026-09-25
 
@@ -37,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforce LF line endings with `.gitattributes` across platforms while keeping PNG files binary (closes #48).
 - `InMemoryRetriever.retrieve()` now returns an empty list for non-positive `top_k` values and raises `RetrieverError` for non-integer or boolean `top_k` values (closes #23).
 - `InMemoryRetriever` now raises `RetrieverError` for invalid vectors and dimension mismatches, validates complete batches before updating stored data, and treats empty batches as a no-op. Vector validation and normalization are shared with `FAISSRetriever` (closes #26).
+### Fixed
+- Optimize `InMemoryRetriever.add()` to normalize only newly added vectors and avoid rebuilding the full matrix on every call (closes #27).
 
 ## [0.2.0] - 2026-09-19
 
