@@ -8,7 +8,7 @@ from ragframework.document.chunkers import (
 )
 
 from .html import HTMLLoader
-from .loaders import DocxLoader, MarkdownLoader, PDFLoader, TextFileLoader
+from .loaders import DirectoryLoader, DocxLoader, MarkdownLoader, PDFLoader, TextFileLoader
 from .tabular import CSVLoader, JSONLLoader
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     "CSVLoader",
     "JSONLLoader",
     "HTMLLoader",
+    "DirectoryLoader",
     "FixedSizeChunker",
     "RecursiveChunker",
     "SentenceChunker",
