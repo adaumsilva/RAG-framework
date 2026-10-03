@@ -134,6 +134,8 @@ for chunk in response.source_chunks:
     print(f"  Source: {chunk.metadata.get('source')} — {chunk.content[:80]}…")
 ```
 
+See the [Getting Started guide](docs/getting-started.md) for an introduction to the components and optional integrations.
+
 ### Loading CSV and JSON Lines
 
 The built-in tabular loaders need no additional dependencies. Each CSV data row

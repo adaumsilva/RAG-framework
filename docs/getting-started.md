@@ -1,489 +1,200 @@
-\# Getting Started
+# Getting Started
 
+RAG Framework is a modular Python framework for building Retrieval-Augmented Generation (RAG) pipelines. It provides components for loading documents, splitting them into chunks, generating embeddings, retrieving relevant chunks, and generating answers.
 
+## Installation
 
-RAG Framework is a modular Python framework for building Retrieval-Augmented Generation (RAG) pipelines.
-
-
-
-It provides simple abstractions for loading documents, splitting them into chunks, generating embeddings, retrieving relevant chunks, and generating answers.
-
-
-
-\## Installation
-
-
-
-\### Requirements
-
-
-
-RAG Framework requires Python 3.10 or newer.
-
-
-
-For development, create and activate a virtual environment:
-
-
+RAG Framework requires Python 3.10 or newer. Install the core package with:
 
 ```bash
-
-python -m venv .venv
-
+pip install ragframework
 ```
 
+For development from a clone, create and activate a virtual environment, then install the development dependencies:
 
+```bash
+python -m venv .venv
+```
 
 On Windows PowerShell:
 
-
-
 ```powershell
-
-.\\.venv\\Scripts\\Activate.ps1
-
+.\.venv\Scripts\Activate.ps1
 ```
-
-
-
-Install the framework with development dependencies:
-
-
 
 ```bash
-
-pip install -e ".\[dev]"
-
+pip install -e ".[dev]"
 ```
 
-
-
-The core framework only requires NumPy. Optional integrations can be installed for additional functionality.
-
-
-
-\### Optional Dependencies
-
-
-
-Install PDF support:
-
-
+Optional integrations are installed with extras:
 
 ```bash
-
-pip install -e ".\[pdf]"
-
+pip install "ragframework[pdf]"          # PDFLoader
+pip install "ragframework[huggingface]"  # HuggingFaceEmbedder
+pip install "ragframework[faiss]"        # FAISSRetriever
+pip install "ragframework[chromadb]"     # ChromaRetriever
 ```
 
+For a local editable install, use the same extras after `-e`, for example `pip install -e ".[pdf]"`.
 
+## Quickstart
 
-Install DOCX support:
-
-
+The repository includes a complete example that uses built-in components and does not require an API key. From the repository root, run:
 
 ```bash
-
-pip install -e ".\[docx]"
-
+python examples/basic_rag.py
 ```
 
-
-
-Install Hugging Face support:
-
-
-
-```bash
-
-pip install -e ".\[huggingface]"
-
-```
-
-
-
-Install ChromaDB support:
-
-
-
-```bash
-
-pip install -e ".\[chromadb]"
-
-```
-
-
-
-Install FAISS support:
-
-
-
-```bash
-
-pip install -e ".\[faiss]"
-
-```
-
-
-
-To install all optional integrations:
-
-
-
-```bash
-
-pip install -e ".\[all]"
-
-```
-
-
-
-\## Quickstart
-
-
-
-The repository includes a built-in example that runs without an API key.
-
-
-
-Run:
-
-
-
-```bash
-
-python examples/basic\_rag.py
-
-```
-
-
-
-The example demonstrates the complete RAG workflow:
-
-
-
-1\. Load a document.
-
-2\. Split the document into chunks.
-
-3\. Generate embeddings.
-
-4\. Add chunks to the retriever.
-
-5\. Query the pipeline.
-
-6\. Generate an answer from the retrieved context.
+The example loads a text file, chunks it, embeds the chunks, indexes them, and queries the pipeline. Its `RandomEmbedder` and `EchoGenerator` are demonstration components; use a semantic embedder and an LLM-backed generator for production applications.
 
 ## Logging
 
-RAG Framework uses Python's standard-library logging and is silent by default.
-Enable pipeline stage summaries with:
+RAG Framework uses Python's standard-library logging and is silent by default. Enable pipeline stage summaries with:
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.INFO)
 ```
 
 Use `logging.DEBUG` to include per-batch embedding and retriever indexing details.
 
-\## Building a Pipeline
+## Building a Pipeline
 
-
-
-A RAG pipeline is created by providing implementations for the main components:
-
-
+The pipeline coordinates a loader, chunker, embedder, retriever, and generator. This setup matches the current `RAGPipeline` constructor and the imports used by `examples/basic_rag.py`:
 
 ```python
-
 from ragframework.config import RAGConfig
-
-from ragframework.document.chunkers import FixedSizeChunker
-
-from ragframework.document.loaders import TextFileLoader
-
-from ragframework.embeddings.random\_embedder import RandomEmbedder
-
-from ragframework.generator.echo\_generator import EchoGenerator
-
-from ragframework.pipeline.rag import RAGPipeline
-
-from ragframework.retriever.in\_memory import InMemoryRetriever
-
-
+from ragframework.document import FixedSizeChunker, TextFileLoader
+from ragframework.embeddings import RandomEmbedder
+from ragframework.generator import EchoGenerator
+from ragframework.pipeline import RAGPipeline
+from ragframework.retriever import InMemoryRetriever
 
 pipeline = RAGPipeline(
-
-&#x20;   loader=TextFileLoader(),
-
-&#x20;   chunker=FixedSizeChunker(chunk\_size=200, chunk\_overlap=40),
-
-&#x20;   embedder=RandomEmbedder(dim=64, seed=42),
-
-&#x20;   retriever=InMemoryRetriever(),
-
-&#x20;   generator=EchoGenerator(),
-
-&#x20;   config=RAGConfig(top\_k=3),
-
+    loader=TextFileLoader(),
+    chunker=FixedSizeChunker(chunk_size=200, chunk_overlap=40),
+    embedder=RandomEmbedder(dim=64, seed=42),
+    retriever=InMemoryRetriever(),
+    generator=EchoGenerator(),
+    config=RAGConfig(top_k=3),
 )
-
 ```
 
-
-
-The built-in `RandomEmbedder` and `EchoGenerator` are intended for examples and testing. They do not provide production-quality semantic retrieval or LLM-generated answers.
-
-
-
-\## Loading Documents
-
-
-
-`DocumentLoader` defines the interface for loading source content.
-
-
-
-The built-in text loader can load a text file:
-
-
+Alternatively, `RAGPipeline.from_config()` builds the chunker from `RAGConfig`'s chunk settings:
 
 ```python
-
-loader = TextFileLoader()
-
-documents = loader.load("example.txt")
-
-```
-
-
-
-A loader returns one or more `Document` objects containing the document content and metadata.
-
-
-
-\## Chunking
-
-
-
-Long documents are divided into smaller pieces before embedding.
-
-
-
-The framework provides `FixedSizeChunker`:
-
-
-
-```python
-
-chunker = FixedSizeChunker(
-
-&#x20;   chunk\_size=200,
-
-&#x20;   chunk\_overlap=40,
-
+pipeline = RAGPipeline.from_config(
+    RAGConfig(chunk_size=200, chunk_overlap=40, top_k=3),
+    loader=TextFileLoader(),
+    embedder=RandomEmbedder(dim=64, seed=42),
+    retriever=InMemoryRetriever(),
+    generator=EchoGenerator(),
 )
-
 ```
 
+## Loading Documents
 
-
-The `chunk\_size` controls the approximate size of each chunk, while `chunk\_overlap` allows neighboring chunks to share some content.
-
-
-
-\## Embeddings
-
-
-
-Embeddings convert text into numerical vectors that can be used for similarity-based retrieval.
-
-
-
-The built-in example uses:
-
-
+`DocumentLoader.load(source)` returns a list of `Document` objects. The built-in text loader accepts a file path:
 
 ```python
-
-embedder = RandomEmbedder(dim=64, seed=42)
-
+documents = TextFileLoader().load("example.txt")
+print(documents[0].content)
 ```
 
-
-
-`RandomEmbedder` is useful for demonstrating the pipeline without requiring an external service or API key.
-
-
-
-For meaningful semantic retrieval, replace it with a real embedding implementation when an integration is available.
-
-
-
-\## Ingestion
-
-
-
-Documents are loaded, chunked, embedded, and added to the retriever during ingestion:
-
-
+For PDFs, install the `[pdf]` extra and use the public `PDFLoader` export. By default, it returns one document per page; pass `split_pages=False` to return one document for the whole file:
 
 ```python
+from ragframework.document import PDFLoader
 
-n\_chunks = pipeline.ingest("example.txt")
-
-print(f"Ingested {n\_chunks} chunks")
-
+documents = PDFLoader().load("report.pdf")
 ```
 
+## Chunking
 
-
-The return value is the number of chunks ingested into the pipeline.
-
-
-
-\## Querying
-
-
-
-After ingestion, query the pipeline:
-
-
+Chunkers turn each `Document` into `Chunk` objects. `FixedSizeChunker` splits into character windows. `RecursiveChunker` tries its configured separators in order to keep chunks together along paragraph, line, sentence, or word boundaries where possible:
 
 ```python
+from ragframework.document import RecursiveChunker
 
-response = pipeline.query(
-
-&#x20;   "What are the stages of a RAG pipeline?"
-
-)
-
+chunker = RecursiveChunker(chunk_size=500, chunk_overlap=50)
+chunks = chunker.chunk(documents[0])
 ```
 
+Both chunkers also provide `from_config(config)` class methods.
 
+## Embeddings
 
-The returned `RAGResponse` contains the generated answer and the chunks retrieved as context.
-
-
+An `Embedder` converts a list of texts into vectors. `RandomEmbedder` is useful for examples and tests, but its vectors do not provide meaningful semantic retrieval. For local semantic embeddings, install the `[huggingface]` extra:
 
 ```python
+from ragframework.embeddings import HuggingFaceEmbedder
 
+embedder = HuggingFaceEmbedder(model_name="all-MiniLM-L6-v2")
+vectors = embedder.embed(["A sample sentence."])
+```
+
+## Ingestion
+
+`RAGPipeline.ingest(source)` loads, chunks, embeds, and indexes a source. It returns the number of chunks added:
+
+```python
+n_chunks = pipeline.ingest("example.txt")
+print(f"Ingested {n_chunks} chunks")
+```
+
+Use `pipeline.ingest_many(["first.txt", "second.txt"])` to ingest several sources and get their total chunk count.
+
+## Querying
+
+After ingestion, call `query` with a question. The optional `top_k` keyword overrides the configured result count for that call:
+
+```python
+response = pipeline.query("What are the stages of a RAG pipeline?", top_k=3)
 print(response.answer)
-
-print(len(response.source\_chunks))
-
 ```
 
+The returned `RAGResponse` includes the original query and the retrieved `source_chunks` used as context.
 
+## Inspecting Retrieved Results
 
-\## Inspecting Retrieved Results
-
-
-
-Retrieved chunks can be inspected through `source\_chunks`:
-
-
+Each retrieved chunk includes its ID, content, and metadata:
 
 ```python
-
-for chunk in response.source\_chunks:
-
-&#x20;   print(chunk.id)
-
-&#x20;   print(chunk.content)
-
+for chunk in response.source_chunks:
+    print(chunk.id)
+    print(chunk.content)
+    print(chunk.metadata)
 ```
 
+## Choosing a Retriever
 
-
-This is useful for understanding which parts of the source documents were provided as context for the answer.
-
-
-
-\## Understanding the Core ABCs
-
-
-
-RAG Framework uses abstract base classes (ABCs) to keep the pipeline modular.
-
-
-
-\### DocumentLoader
-
-
-
-Responsible for loading source documents.
-
-
+The `InMemoryRetriever` needs no extra dependency and is convenient for small examples. `FAISSRetriever` and `ChromaRetriever` implement the same retriever interface; install the matching optional extra before constructing either one:
 
 ```python
+from ragframework.retriever import FAISSRetriever
 
-DocumentLoader.load(source)
-
+retriever = FAISSRetriever()
 ```
-
-
-
-\### TextChunker
-
-
-
-Responsible for splitting documents into chunks.
-
-
 
 ```python
+from ragframework.retriever import ChromaRetriever
 
-TextChunker.chunk(document)
-
+retriever = ChromaRetriever()  # ephemeral collection
+# Or persist the collection to disk:
+# retriever = ChromaRetriever(persist_directory="./chroma-data")
 ```
 
+Pass the selected retriever to `RAGPipeline` in place of `InMemoryRetriever`.
 
+## Understanding the Core ABCs
 
-\### Embedder
+The abstract base classes in `ragframework.base` define the interfaces implemented by pipeline components:
 
+- `DocumentLoader.load(source)` returns documents.
+- `TextChunker.chunk(document)` returns chunks.
+- `Embedder.embed(texts)` returns one vector per text.
+- `Retriever.add(chunks)` indexes embedded chunks, and `Retriever.retrieve(query_embedding, top_k=5)` returns relevant chunks.
+- `Generator.generate(query, context)` returns an answer string.
 
-
-Responsible for converting text into embedding vectors.
-
-
-
-```python
-
-Embedder.embed(texts)
-
-```
-
-
-
-\### Retriever
-
-
-
-Responsible for indexing chunks and retrieving relevant chunks for a query.
-
-
-
-```python
-
-Retriever.add(chunks)
-
-Retriever.retrieve(query\_embedding, top\_k)
-
-```
-
-
-
-\### Generator
-
-
-
-Responsible for generating an answer using the query and retrieved context.
-
-
-
-```python
-
-Generator.generate(query, context)
-
-```
+`RAGPipeline` connects these components; `RAGConfig` holds settings such as chunk size, overlap, and default `top_k`.

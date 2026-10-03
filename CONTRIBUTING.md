@@ -42,6 +42,8 @@ By participating in this project you agree to treat everyone with respect and pr
    git checkout -b feat/openai-embedder
    ```
 
+For an introduction to the framework and its components, see the [Getting Started guide](docs/getting-started.md).
+
 ---
 
 ## Development Setup
