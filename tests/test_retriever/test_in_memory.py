@@ -196,6 +196,7 @@ class TestInMemoryRetriever:
         assert len(batched_results) == len(single_results)
         assert batched_results[0].id == single_results[0].id
 
+
 def test_retrieve_consolidates_matrix_blocks_without_duplicate_storage():
     retriever = InMemoryRetriever()
 
@@ -216,6 +217,7 @@ def test_retrieve_consolidates_matrix_blocks_without_duplicate_storage():
     assert retriever._matrix is not None
     assert len(retriever._matrix_blocks) == 1
     assert retriever._matrix_blocks[0] is retriever._matrix
+
 
 def test_add_after_consolidation_preserves_all_results():
     retriever = InMemoryRetriever()

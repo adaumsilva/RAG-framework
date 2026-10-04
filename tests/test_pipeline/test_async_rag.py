@@ -1,4 +1,3 @@
-
 """Tests for AsyncRAGPipeline."""
 
 import pytest
@@ -55,4 +54,3 @@ def test_from_pipeline_wraps_existing_pipeline(pipeline):
     async_pipeline = AsyncRAGPipeline.from_pipeline(pipeline)
 
     assert async_pipeline._pipeline is pipeline
-
