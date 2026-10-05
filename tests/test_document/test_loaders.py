@@ -233,6 +233,7 @@ def test_pdf_loader_requires_pypdf(tmp_path, monkeypatch):
 
 
 def test_pdf_loader_loads_real_pdf(tmp_path):
+    pytest.importorskip("pypdf")
     from pypdf import PdfWriter
 
     pdf_path = tmp_path / "real.pdf"
