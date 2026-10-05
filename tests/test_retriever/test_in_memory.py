@@ -172,3 +172,77 @@ class TestInMemoryRetriever:
 
         with pytest.raises(RetrieverError, match="top_k must be an integer"):
             r.retrieve([1.0, 0.0], top_k=True)
+
+    def test_batched_add_matches_single_batch(self):
+        chunks = [
+            make_chunk("a", [1.0, 0.0]),
+            make_chunk("b", [0.0, 1.0]),
+            make_chunk("c", [1.0, 1.0]),
+            make_chunk("d", [-1.0, 0.0]),
+        ]
+
+        single_batch = InMemoryRetriever()
+        single_batch.add(chunks)
+
+        batched = InMemoryRetriever()
+        batched.add(chunks[:2])
+        batched.add(chunks[2:])
+
+        query = [1.0, 1.0]
+
+        single_results = single_batch.retrieve(query, top_k=4)
+        batched_results = batched.retrieve(query, top_k=4)
+
+        assert len(batched_results) == len(single_results)
+        assert batched_results[0].id == single_results[0].id
+
+
+def test_retrieve_consolidates_matrix_blocks_without_duplicate_storage():
+    retriever = InMemoryRetriever()
+
+    chunks = [
+        make_chunk("a", [1.0, 0.0]),
+        make_chunk("b", [0.0, 1.0]),
+        make_chunk("c", [1.0, 1.0]),
+    ]
+
+    retriever.add(chunks[:1])
+    retriever.add(chunks[1:])
+
+    assert len(retriever._matrix_blocks) == 2
+    assert retriever._matrix is None
+
+    retriever.retrieve([1.0, 1.0], top_k=3)
+
+    assert retriever._matrix is not None
+    assert len(retriever._matrix_blocks) == 1
+    assert retriever._matrix_blocks[0] is retriever._matrix
+
+
+def test_add_after_consolidation_preserves_all_results():
+    retriever = InMemoryRetriever()
+
+    first = [
+        make_chunk("a", [1.0, 0.0]),
+        make_chunk("b", [0.0, 1.0]),
+    ]
+    second = [
+        make_chunk("c", [1.0, 1.0]),
+    ]
+
+    retriever.add(first)
+    retriever.retrieve([1.0, 1.0], top_k=2)
+
+    assert len(retriever._matrix_blocks) == 1
+    assert retriever._matrix_blocks[0] is retriever._matrix
+
+    retriever.add(second)
+
+    assert retriever._matrix is None
+    assert len(retriever._matrix_blocks) == 2
+
+    results = retriever.retrieve([1.0, 1.0], top_k=3)
+
+    assert [chunk.id for chunk in results] == ["c", "b", "a"]
+    assert len(retriever._matrix_blocks) == 1
+    assert retriever._matrix_blocks[0] is retriever._matrix
