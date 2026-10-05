@@ -232,6 +232,25 @@ def test_pdf_loader_requires_pypdf(tmp_path, monkeypatch):
         loader.load(str(pdf_path))
 
 
+def test_pdf_loader_loads_real_pdf(tmp_path):
+    pytest.importorskip("pypdf")
+    from pypdf import PdfWriter
+
+    pdf_path = tmp_path / "real.pdf"
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=72, height=72)
+
+    with pdf_path.open("wb") as file:
+        writer.write(file)
+
+    loader = PDFLoader(split_pages=True)
+    docs = loader.load(str(pdf_path))
+
+    assert len(docs) == 1
+    assert docs[0].metadata["format"] == "pdf"
+
+
 def test_pdf_loader_loads_pages_with_fake_pypdf(tmp_path, monkeypatch):
     class FakePage:
         def __init__(self, text):

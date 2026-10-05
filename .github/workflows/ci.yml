@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Python ${{ matrix.python-version }}
@@ -13,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v7
@@ -25,13 +29,10 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -e ".[dev,faiss,chromadb,docx]"
-
-      - name: Lint with ruff
-        run: ruff check ragframework/
+        run: pip install -e ".[dev,faiss,chromadb,docx,pdf]"
 
       - name: Run tests
-        run: pytest tests/ -v --cov=ragframework --cov-report=xml
+        run: pytest tests/ -v --cov=ragframework --cov-report=xml --cov-fail-under=93
 
       - name: Upload coverage
         uses: codecov/codecov-action@v7
@@ -39,20 +40,55 @@ jobs:
           files: ./coverage.xml
           fail_ci_if_error: false
 
-  typecheck:
-    name: Type check (Python 3.10)
+  lint:
+    name: Lint and format
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.10"
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,faiss,chromadb,docx,pdf]"
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Check formatting with black
+        run: black --check .
+
+      - name: Check imports with isort
+        run: isort --check-only .
+
+  typecheck:
+    name: Type check (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: Install type-check dependencies
-        run: pip install -c .github/constraints-typecheck.txt -e ".[faiss,docx]" "mypy>=1.10"
+        run: |
+          if [ "${{ matrix.python-version }}" = "3.10" ]; then
+            pip install -c .github/constraints-typecheck.txt -e ".[faiss,docx,pdf]" "mypy>=1.10"
+          else
+            pip install -e ".[faiss,docx,pdf]" "mypy>=1.10"
+          fi
 
       - name: Type check with mypy
         run: mypy ragframework/
