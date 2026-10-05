@@ -6,6 +6,7 @@ must subclass one of these ABCs and implement the required methods.
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
@@ -81,6 +82,7 @@ class DocumentLoader(ABC):
             A list of :class:`Document` objects. May be a single-element list
             for single-file loaders.
         """
+        pass
 
 
 class TextChunker(ABC):
@@ -112,6 +114,22 @@ class Embedder(ABC):
             A list of float vectors, one per input text. All vectors must have
             the same dimensionality.
         """
+
+    async def aembed(self, texts: list[str]) -> list[list[float]]:
+        """Produce an embedding for each text asynchronously.
+
+        Default implementation runs the synchronous embed method in a
+        thread pool and is thus suitable for CPU-bound or single-threaded
+        embedding libraries. Override this method in subclasses that use
+        truly asynchronous client (e.g., AsyncOpenAI).
+
+        Args:
+            texts: Batch of raw text strings.
+
+        Returns:
+            A list of float vectors, one per input text.
+        """
+        return await asyncio.to_thread(self.embed, texts)
 
 
 class Retriever(ABC):

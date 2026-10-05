@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `OpenAIEmbedder` for synchronous and asynchronous OpenAI embeddings with token-aware batching (closes #6).
 - `TokenChunker` for token-level chunking using tiktoken with a new `[tokens]` optional extra (closes #44)
 
 - Structured logging for ingest, query, and retriever stages, including timing and empty-ingest warnings (closes #41).
