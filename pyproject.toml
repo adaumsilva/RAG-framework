@@ -58,6 +58,7 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "pre-commit>=3.7",
+    "tiktoken>=0.7",
 ]
 
 [project.urls]

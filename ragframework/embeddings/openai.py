@@ -167,6 +167,24 @@ class OpenAIEmbedder(Embedder):
         if not isinstance(texts, list) or not all(isinstance(t, str) for t in texts):
             raise TypeError(f"Expected a list of strings, got {type(texts).__name__}")
 
+    def _truncate(self, enc: Any, toks: list[int]) -> tuple[str, int] | None:
+        """Cut to max_input_tokens at a valid character boundary.
+
+        Returns (text, actual_token_count), or None if nothing usable fits.
+        """
+        limit = self.max_input_tokens
+        cut = limit
+        while cut > 0:
+            # a token cut can land mid-character; drop the partial trailing bytes
+            text = enc.decode_bytes(toks[:cut]).decode("utf-8", errors="ignore")
+            if not text.strip():
+                return None  # shorter prefixes would be whitespace-only too
+            n = len(enc.encode_ordinary(text))
+            if n <= limit:
+                return text, n
+            cut -= 1  # re-tokenizing gave more tokens than the limit (rare)
+        return None
+
     def _prepare_batches(self, texts: list[str]) -> list[list[str]]:
         """Split validated texts into request-sized batches, keeping order."""
         try:
@@ -179,11 +197,33 @@ class OpenAIEmbedder(Embedder):
             tokens_list = enc.encode_ordinary_batch(texts)
 
             too_long = [i for i, t in enumerate(tokens_list) if len(t) > self.max_input_tokens]
+
             if too_long and self.on_overflow == "error":
                 raise EmbedderError(
                     f"Texts at indices {too_long[:10]} exceed {self.max_input_tokens} tokens. "
                     "Chunk them smaller or set on_overflow='truncate'."
                 )
+
+            items: list[tuple[str, int]] = []
+            unusable: list[int] = []
+
+            for i, (text, toks) in enumerate(zip(texts, tokens_list, strict=True)):
+                if len(toks) > self.max_input_tokens:  # only reachable when truncating
+                    result = self._truncate(enc, toks)
+                    if result is None:
+                        unusable.append(i)
+                        continue
+                    text, n = result
+                else:
+                    n = len(toks)
+                items.append((text, n))
+
+            if unusable:
+                raise EmbedderError(
+                    f"Texts at indices {unusable[:10]} have no usable text within "
+                    f"{self.max_input_tokens} tokens after truncation."
+                )
+
             if too_long:
                 logger.warning(
                     "Truncating %d text(s) to %d tokens", len(too_long), self.max_input_tokens
@@ -193,12 +233,7 @@ class OpenAIEmbedder(Embedder):
             curr_batch: list[str] = []
             curr_tokens = 0
 
-            for text, toks in zip(texts, tokens_list, strict=True):
-                n = len(toks)
-                if n > self.max_input_tokens:  # only reachable when truncating
-                    text = enc.decode(toks[: self.max_input_tokens])
-                    n = self.max_input_tokens
-
+            for text, n in items:
                 # close the batch only if adding this text would break a limit
                 if curr_batch and (
                     len(curr_batch) >= self.batch_size or curr_tokens + n > self.max_batch_tokens

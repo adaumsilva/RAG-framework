@@ -14,6 +14,11 @@ from ragframework.base import Embedder
 from ragframework.embeddings.openai import OpenAIEmbedder
 from ragframework.exceptions import EmbedderError
 
+try:
+    import tiktoken as real_tiktoken
+except ImportError:
+    real_tiktoken = None
+
 
 class FakeOpenAIError(Exception):
     pass
@@ -38,6 +43,14 @@ class FakeEncoder:
         return [list(range(len(text))) for text in texts]
 
     @staticmethod
+    def encode_ordinary(text: str) -> list[int]:
+        return list(range(len(text)))
+
+    @staticmethod
+    def decode_bytes(tokens: list[int]) -> bytes:
+        return b"x" * len(tokens)
+
+    @staticmethod
     def decode(tokens: list[int]) -> str:
         return "x" * len(tokens)
 
@@ -54,8 +67,25 @@ async def _async_create(**kwargs: object) -> types.SimpleNamespace:
     return _response(kwargs["input"])
 
 
+def _is_invalid_utf8_prefix(data: bytes) -> bool:
+    try:
+        data.decode("utf-8", errors="strict")
+    except UnicodeDecodeError:
+        return True
+    return False
+
+
 @pytest.fixture
-def mocked_dependencies(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+def real_cl100k_encoder() -> object:
+    if real_tiktoken is None:
+        pytest.skip("tiktoken is required for the real-tokenizer regression test")
+    return real_tiktoken.get_encoding("cl100k_base")
+
+
+@pytest.fixture
+def mocked_dependencies(
+    monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> dict[str, object]:
     """Install fake optional packages and clients into this test's import table."""
     encoder = FakeEncoder()
     tokenizer = types.ModuleType("tiktoken")
@@ -73,7 +103,8 @@ def mocked_dependencies(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
     openai.AsyncOpenAI = Mock(return_value=async_client)
 
     monkeypatch.setitem(sys.modules, "openai", openai)
-    monkeypatch.setitem(sys.modules, "tiktoken", tokenizer)
+    if "real_cl100k_encoder" not in request.fixturenames:
+        monkeypatch.setitem(sys.modules, "tiktoken", tokenizer)
     return {
         "openai": openai,
         "tokenizer": tokenizer,
@@ -238,6 +269,240 @@ def test_truncate_overflow_sends_truncated_text(mocked_dependencies: dict[str, o
     embedder.embed(["long"])
 
     assert create.call_args.kwargs["input"] == ["xx"]
+
+
+def test_truncation_preserves_unicode_boundary_with_real_tokenizer(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+) -> None:
+    encoder = real_cl100k_encoder
+    text = "A\U0001f600B"
+    tokens = encoder.encode_ordinary(text)
+
+    # Pick a limit whose token prefix ends inside a UTF-8 character, while
+    # retaining usable text before that character.
+    limits = [
+        limit
+        for limit in range(1, len(tokens))
+        if encoder.decode_bytes(tokens[:limit]).decode("utf-8", errors="ignore").strip()
+        and _is_invalid_utf8_prefix(encoder.decode_bytes(tokens[:limit]))
+    ]
+    assert limits, "expected cl100k_base to expose a partial UTF-8 token boundary"
+    limit = limits[0]
+
+    client = mocked_dependencies["sync_client"]
+    create = client.embeddings.create
+    create.side_effect = lambda **kwargs: _response(kwargs["input"])
+    embedder = OpenAIEmbedder(api_key="test-key", max_input_tokens=limit, on_overflow="truncate")
+    embedder._encoder = encoder
+
+    embedder.embed([text])
+
+    sent_text = create.call_args.kwargs["input"][0]
+    assert sent_text
+    assert "\ufffd" not in sent_text
+    assert text.startswith(sent_text)
+    assert len(encoder.encode_ordinary(sent_text)) <= limit
+
+
+def test_partial_character_only_prefix_raises_before_client(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+) -> None:
+    encoder = real_cl100k_encoder
+    assert len(encoder.encode_ordinary("\U0001f600")) > 1
+
+    embedder = OpenAIEmbedder(api_key="test-key", max_input_tokens=1, on_overflow="truncate")
+    embedder._encoder = encoder
+
+    with pytest.raises(EmbedderError, match="no usable text"):
+        embedder.embed(["\U0001f600hello"])
+
+    mocked_dependencies["openai"].OpenAI.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "\U0001f600hello w\u00f6rld \u65e5\u672c\u8a9e \U0001f389 end",
+        "A\U0001f600B",
+        "na\u00efve caf\u00e9 \u4f60\u597d",
+    ],
+)
+def test_truncation_sweep_never_sends_broken_text(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+    text: str,
+) -> None:
+    encoder = real_cl100k_encoder
+    client = mocked_dependencies["sync_client"]
+    create = client.embeddings.create
+    create.side_effect = lambda **kwargs: _response(kwargs["input"])
+    openai_factory = mocked_dependencies["openai"].OpenAI
+
+    for limit in range(1, len(encoder.encode_ordinary(text))):
+        create.reset_mock()
+        openai_factory.reset_mock()
+        embedder = OpenAIEmbedder(
+            api_key="test-key", max_input_tokens=limit, on_overflow="truncate"
+        )
+        embedder._encoder = encoder
+
+        try:
+            embedder.embed([text])
+        except EmbedderError as exc:
+            assert "no usable text" in str(exc)
+            create.assert_not_called()
+            openai_factory.assert_not_called()
+            continue
+
+        sent_text = create.call_args.kwargs["input"][0]
+        assert "\ufffd" not in sent_text
+        assert sent_text.strip()
+        assert text.startswith(sent_text)
+        assert len(encoder.encode_ordinary(sent_text)) <= limit
+
+
+def test_error_overflow_precedes_truncation_validation(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+) -> None:
+    encoder = real_cl100k_encoder
+    embedder = OpenAIEmbedder(api_key="test-key", max_input_tokens=1)
+    embedder._encoder = encoder
+
+    with pytest.raises(EmbedderError, match="exceed 1 tokens.*on_overflow='truncate'"):
+        embedder.embed(["\n" * 200 + "hello"])
+
+    mocked_dependencies["openai"].OpenAI.assert_not_called()
+
+
+def test_truncation_preserves_literal_replacement_character(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+) -> None:
+    encoder = real_cl100k_encoder
+    text = "\ufffd hello world"
+    tokens = encoder.encode_ordinary(text)
+    valid_limits = []
+    for limit in range(1, len(tokens)):
+        try:
+            candidate = encoder.decode_bytes(tokens[:limit]).decode("utf-8", errors="strict")
+        except UnicodeDecodeError:
+            continue
+        if "\ufffd" in candidate and len(encoder.encode_ordinary(candidate)) <= limit:
+            valid_limits.append(limit)
+    assert valid_limits, "expected a truncation prefix containing the literal replacement char"
+
+    client = mocked_dependencies["sync_client"]
+    create = client.embeddings.create
+    create.side_effect = lambda **kwargs: _response(kwargs["input"])
+    embedder = OpenAIEmbedder(
+        api_key="test-key", max_input_tokens=valid_limits[0], on_overflow="truncate"
+    )
+    embedder._encoder = encoder
+
+    embedder.embed([text])
+
+    assert create.call_args.kwargs["input"][0].startswith("\ufffd")
+
+
+def test_batching_uses_retokenized_truncation_counts(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+) -> None:
+    encoder = real_cl100k_encoder
+    texts = ["A\U0001f600B", "C\U0001f600D"]
+    assert all(len(encoder.encode_ordinary(text)) > 2 for text in texts)
+
+    client = mocked_dependencies["sync_client"]
+    create = client.embeddings.create
+    create.side_effect = lambda **kwargs: _response(kwargs["input"])
+    embedder = OpenAIEmbedder(
+        api_key="test-key",
+        max_input_tokens=2,
+        max_batch_tokens=3,
+        batch_size=10,
+        on_overflow="truncate",
+    )
+    embedder._encoder = encoder
+
+    embedder.embed(texts)
+
+    assert len(create.call_args_list) == 1
+    assert create.call_args.kwargs["input"] == ["A", "C"]
+
+
+def test_mixed_batch_with_unusable_truncation_fails_before_client(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+) -> None:
+    embedder = OpenAIEmbedder(api_key="test-key", max_input_tokens=1, on_overflow="truncate")
+    embedder._encoder = real_cl100k_encoder
+
+    with pytest.raises(EmbedderError, match=r"indices \[1\].*no usable text"):
+        embedder.embed(["good", "\U0001f600hello"])
+
+    mocked_dependencies["openai"].OpenAI.assert_not_called()
+
+
+def test_in_limit_emoji_is_sent_unchanged(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+) -> None:
+    encoder = real_cl100k_encoder
+    text = "\U0001f600hello"
+    limit = len(encoder.encode_ordinary(text))
+    client = mocked_dependencies["sync_client"]
+    create = client.embeddings.create
+    create.side_effect = lambda **kwargs: _response(kwargs["input"])
+    embedder = OpenAIEmbedder(api_key="test-key", max_input_tokens=limit, on_overflow="truncate")
+    embedder._encoder = encoder
+
+    embedder.embed([text])
+
+    assert create.call_args.kwargs["input"] == [text]
+
+
+@pytest.mark.asyncio
+async def test_async_unusable_truncation_fails_before_client(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+) -> None:
+    embedder = OpenAIEmbedder(api_key="test-key", max_input_tokens=1, on_overflow="truncate")
+    embedder._encoder = real_cl100k_encoder
+
+    with pytest.raises(EmbedderError, match="no usable text"):
+        await embedder.aembed(["\U0001f600hello"])
+
+    mocked_dependencies["openai"].AsyncOpenAI.assert_not_called()
+
+
+def test_whitespace_only_truncation_fails_before_client_creation(
+    real_cl100k_encoder: object,
+    mocked_dependencies: dict[str, object],
+) -> None:
+    encoder = real_cl100k_encoder
+    text = "    hello world"
+    tokens = encoder.encode_ordinary(text)
+    whitespace_limits = [
+        limit
+        for limit in range(1, len(tokens))
+        if not encoder.decode_bytes(tokens[:limit]).decode("utf-8", errors="ignore").strip()
+    ]
+    assert whitespace_limits, "expected cl100k_base to tokenize the leading spaces"
+
+    embedder = OpenAIEmbedder(
+        api_key="test-key",
+        max_input_tokens=whitespace_limits[0],
+        on_overflow="truncate",
+    )
+    embedder._encoder = encoder
+
+    with pytest.raises(EmbedderError, match="no usable text"):
+        embedder.embed([text])
+
+    mocked_dependencies["openai"].OpenAI.assert_not_called()
 
 
 def test_wrong_response_count_stops_before_later_sync_batches(
