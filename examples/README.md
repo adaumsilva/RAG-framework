@@ -74,23 +74,26 @@ The notebook demonstrates:
 5. Querying the RAG pipeline.
 6. Inspecting retrieved source chunks.
 
-## Adding real LLM / embedder support
+## OpenAI embeddings
 
-The built-in `RandomEmbedder` and `EchoGenerator` are placeholders.
-Swap them for real implementations once the community contributes them
-(see [Good First Issues](../.github/GOOD_FIRST_ISSUES.md)).
+Install the OpenAI extra, which includes both the OpenAI SDK and the tokenizer
+used for request batching, then set `OPENAI_API_KEY`:
 
-For example, future integrations may look like:
-
-```python
-from ragframework.embeddings.openai import OpenAIEmbedder
-from ragframework.generator.openai import OpenAIGenerator
-
-pipeline = RAGPipeline(
-    ...
-    embedder=OpenAIEmbedder(model="text-embedding-3-small"),
-    generator=OpenAIGenerator(model="gpt-4o-mini"),
-)
+```bash
+pip install "ragframework[openai]"
+export OPENAI_API_KEY=your-key-here
 ```
 
-These integrations are not included in the current built-in framework.
+Create embeddings synchronously with the default `text-embedding-3-small`
+model:
+
+```python
+from ragframework.embeddings import OpenAIEmbedder
+
+with OpenAIEmbedder() as embedder:
+    vectors = embedder.embed(["First document", "Second document"])
+```
+
+The embedder batches by item and token limits, preserves input order, and also
+provides `await embedder.aembed(texts)` for asynchronous use. Close the client
+with `close()` / `aclose()` or use the corresponding context manager.
