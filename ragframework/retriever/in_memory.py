@@ -104,6 +104,7 @@ class InMemoryRetriever(Retriever):
         """Remove all chunks and reset the accepted embedding dimension."""
         self._chunks = []
         self._matrix = None
+        self._matrix_blocks = []
         self._dimension = None
 
     def __len__(self) -> int:
