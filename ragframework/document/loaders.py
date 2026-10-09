@@ -258,6 +258,7 @@ class DirectoryLoader(DocumentLoader):
         paths = root.rglob(self.glob) if self.recursive else root.glob(self.glob)
 
         documents: list[Document] = []
+        self.skipped_count = 0
 
         for path in sorted(paths):
             if not path.is_file():

@@ -477,3 +477,23 @@ def test_directory_loader_counts_skipped_unsupported_files(tmp_path):
 
     assert len(docs) == 1
     assert loader.skipped_count == 2
+
+def test_directory_loader_resets_skipped_count_between_loads(tmp_path):
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+
+    (docs_dir / "keep.txt").write_text("Keep", encoding="utf-8")
+    (docs_dir / "ignored.py").write_text("print('x')", encoding="utf-8")
+
+    loader = DirectoryLoader(loaders={".txt": TextFileLoader()})
+
+    loader.load(str(docs_dir))
+    assert loader.skipped_count == 1
+
+    loader.load(str(docs_dir))
+    assert loader.skipped_count == 1
+
+    (docs_dir / "ignored.py").unlink()
+
+    loader.load(str(docs_dir))
+    assert loader.skipped_count == 0
