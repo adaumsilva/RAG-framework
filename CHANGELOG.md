@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Structured logging for ingest, query, and retriever stages, including timing and empty-ingest warnings (closes #41).
 - `RecursiveChunker.from_config()` for creating a chunker from pipeline configuration (closes #25).
 
+### Changed
+
+- `Retriever` implementations now expose `__len__()` and `clear()`; this is a breaking requirement for third-party retrievers (closes #46).
+
 ### Fixed
 - Repair the Getting Started guide's Markdown formatting and link it from the README and contributor guide (closes #30).
 - Optimize `InMemoryRetriever.add()` to normalize only newly added vectors and avoid rebuilding the full matrix on every call (closes #27).

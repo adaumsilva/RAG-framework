@@ -39,6 +39,8 @@ class ChromaRetriever(Retriever):
                 "Install it with: pip install ragframework[chromadb]"
             ) from exc
 
+        self._collection_name = collection_name
+
         try:
             if persist_directory is None:
                 self._client = chromadb.Client()
@@ -169,6 +171,14 @@ class ChromaRetriever(Retriever):
             return restored
 
         return dict(metadata)
+
+    def clear(self) -> None:
+        """Delete and recreate the backing collection."""
+        try:
+            self._client.delete_collection(name=self._collection_name)
+            self._collection = self._client.get_or_create_collection(name=self._collection_name)
+        except Exception as exc:
+            raise RetrieverError(f"Failed to clear ChromaDB collection: {exc}") from exc
 
     def __len__(self) -> int:
         """Return the number of chunks stored in the collection."""

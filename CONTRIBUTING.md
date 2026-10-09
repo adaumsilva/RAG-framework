@@ -215,6 +215,7 @@ Most contributions are new implementations of an existing ABC. Here is a checkli
 
 - [ ] Create `ragframework/<module>/<name>.py` (e.g. `ragframework/embeddings/openai.py`)
 - [ ] Subclass the correct ABC from `ragframework/base.py`
+- [ ] Retriever subclasses must implement `add()`, `retrieve()`, `__len__()`, and `clear()`
 - [ ] Guard the optional import with a helpful error message
 - [ ] Export the class from the module's `__init__.py`
 - [ ] Add the optional dependency to `pyproject.toml` under `[project.optional-dependencies]`
