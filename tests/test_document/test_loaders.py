@@ -266,6 +266,7 @@ def test_pdf_loader_loads_pages_with_fake_pypdf(tmp_path, monkeypatch):
     assert "page1" in docs_whole[0].content
     assert "page2" in docs_whole[0].content
 
+
 def test_directory_loader_loads_matching_files(tmp_path):
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
@@ -298,6 +299,7 @@ def test_directory_loader_loads_matching_files(tmp_path):
     assert docs[0].metadata["relative_path"] == "hello.txt"
     assert docs[1].metadata["relative_path"] == "readme.md"
 
+
 def test_directory_loader_loads_nested_files_in_sorted_order(tmp_path):
     docs_dir = tmp_path / "docs"
     nested_dir = docs_dir / "nested"
@@ -317,14 +319,12 @@ def test_directory_loader_loads_nested_files_in_sorted_order(tmp_path):
 
     assert len(docs) == 3
 
-    assert [
-        doc.metadata["relative_path"]
-        for doc in docs
-    ] == [
+    assert [doc.metadata["relative_path"] for doc in docs] == [
         "a.txt",
         "nested/b.txt",
         "z.txt",
     ]
+
 
 def test_directory_loader_skips_loader_errors(tmp_path):
     docs_dir = tmp_path / "docs"
@@ -349,6 +349,7 @@ def test_directory_loader_skips_loader_errors(tmp_path):
 
     assert docs == []
 
+
 def test_directory_loader_raises_loader_error(tmp_path):
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
@@ -367,6 +368,7 @@ def test_directory_loader_raises_loader_error(tmp_path):
 
     with pytest.raises(LoaderError, match="bad.txt"):
         loader.load(str(docs_dir))
+
 
 def test_directory_loader_has_default_loaders(tmp_path):
     docs_dir = tmp_path / "docs"
@@ -392,18 +394,17 @@ def test_directory_loader_has_default_loaders(tmp_path):
     docs = loader.load(str(docs_dir))
 
     assert len(docs) == 3
-    assert {
-        doc.metadata["relative_path"]
-        for doc in docs
-    } == {
+    assert {doc.metadata["relative_path"] for doc in docs} == {
         "notes.txt",
         "readme.md",
         "guide.markdown",
     }
 
+
 def test_directory_loader_rejects_invalid_on_error(tmp_path):
     with pytest.raises(ValueError, match="on_error"):
         DirectoryLoader(on_error="banana")
+
 
 def test_directory_loader_handles_unreadable_file(tmp_path, monkeypatch):
     docs_dir = tmp_path / "docs"
@@ -435,6 +436,7 @@ def test_directory_loader_handles_unreadable_file(tmp_path, monkeypatch):
     with pytest.raises(LoaderError, match="bad.txt"):
         raise_loader.load(str(docs_dir))
 
+
 def test_directory_loader_non_recursive_ignores_nested_files(tmp_path):
     docs_dir = tmp_path / "docs"
     nested_dir = docs_dir / "nested"
@@ -452,6 +454,7 @@ def test_directory_loader_non_recursive_ignores_nested_files(tmp_path):
 
     assert [doc.metadata["relative_path"] for doc in docs] == ["top.txt"]
 
+
 def test_directory_loader_default_loaders_skip_pdf_without_pypdf(monkeypatch):
     monkeypatch.setattr(
         "ragframework.document.loaders.importlib.util.find_spec",
@@ -462,6 +465,7 @@ def test_directory_loader_default_loaders_skip_pdf_without_pypdf(monkeypatch):
 
     assert ".pdf" not in loader.loaders
     assert ".txt" in loader.loaders
+
 
 def test_directory_loader_counts_skipped_unsupported_files(tmp_path):
     docs_dir = tmp_path / "docs"
@@ -477,6 +481,7 @@ def test_directory_loader_counts_skipped_unsupported_files(tmp_path):
 
     assert len(docs) == 1
     assert loader.skipped_count == 2
+
 
 def test_directory_loader_resets_skipped_count_between_loads(tmp_path):
     docs_dir = tmp_path / "docs"

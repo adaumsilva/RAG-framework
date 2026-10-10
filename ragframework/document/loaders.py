@@ -245,7 +245,6 @@ class DirectoryLoader(DocumentLoader):
         self.on_error = on_error
         self.skipped_count = 0
 
-
     def load(self, source: str) -> list[Document]:
         root = Path(source)
 
@@ -280,9 +279,7 @@ class DirectoryLoader(DocumentLoader):
                 if self.on_error == "skip":
                     continue
 
-                raise LoaderError(
-                    f"Failed to load {path}: {exc}"
-                ) from exc
+                raise LoaderError(f"Failed to load {path}: {exc}") from exc
 
             relative_path = path.relative_to(root).as_posix()
 
