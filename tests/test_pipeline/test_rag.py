@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
 
@@ -188,7 +190,13 @@ class TestRAGPipeline:
 
     def test_query_with_reranker_uses_top_k_override_for_final_limit(self):
         class FixedRetriever(InMemoryRetriever):
-            def retrieve(self, query_embedding, top_k=5):
+            def retrieve(
+                self,
+                query_embedding: list[float],
+                top_k: int = 5,
+                *,
+                filter: Mapping[str, Any] | None = None,
+            ) -> list[Chunk]:
                 return [Chunk(id=str(i), content=f"chunk {i}") for i in range(top_k)]
 
         generator = RecordingGenerator()
@@ -209,7 +217,13 @@ class TestRAGPipeline:
 
     def test_query_without_reranker_uses_top_k_override_for_final_limit(self):
         class FixedRetriever(InMemoryRetriever):
-            def retrieve(self, query_embedding, top_k=5):
+            def retrieve(
+                self,
+                query_embedding: list[float],
+                top_k: int = 5,
+                *,
+                filter: Mapping[str, Any] | None = None,
+            ) -> list[Chunk]:
                 return [Chunk(id=str(i), content=f"chunk {i}") for i in range(top_k)]
 
         generator = RecordingGenerator()

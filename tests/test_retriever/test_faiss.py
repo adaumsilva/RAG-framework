@@ -41,6 +41,56 @@ def test_real_faiss_search_uses_cosine_similarity_and_preserves_chunks() -> None
     assert results[0].metadata == {"source": "north"}
 
 
+def test_retrieve_filters_by_metadata() -> None:
+    retriever = FAISSRetriever(ef_search=64)
+    north = make_chunk("north", [1.0, 0.0])
+    south = make_chunk("south", [0.0, 1.0])
+    north.metadata = {"region": "north", "active": True}
+    south.metadata = {"region": "south", "active": True}
+    inactive = make_chunk("inactive", [0.8, 0.2])
+    inactive.metadata = {"region": "north", "active": False}
+    retriever.add([north, south, inactive])
+
+    results = retriever.retrieve(
+        [1.0, 0.0],
+        top_k=3,
+        filter={"region": "north", "active": True},
+    )
+
+    assert results == [north]
+
+
+def test_retrieve_filter_with_no_matches_returns_empty() -> None:
+    retriever = FAISSRetriever()
+    chunk = make_chunk("north", [1.0, 0.0])
+    retriever.add([chunk])
+
+    assert (
+        retriever.retrieve(
+            [1.0, 0.0],
+            filter={"region": "missing"},
+        )
+        == []
+    )
+
+
+@pytest.mark.parametrize(
+    "filter_value",
+    [["north"], {"nested": "value"}, None],
+)
+def test_retrieve_rejects_non_scalar_filter_values(
+    filter_value: object,
+) -> None:
+    retriever = FAISSRetriever()
+    retriever.add([make_chunk("north", [1.0, 0.0])])
+
+    with pytest.raises(RetrieverError):
+        retriever.retrieve(
+            [1.0, 0.0],
+            filter={"region": filter_value},  # type: ignore[dict-item]
+        )
+
+
 def test_batches_append_without_replacing_existing_chunks() -> None:
     retriever = FAISSRetriever(ef_search=64)
     first = make_chunk("first", [1.0, 0.0, 0.0])

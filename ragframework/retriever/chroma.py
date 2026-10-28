@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, cast
+
+import numpy as np
+from chromadb import Where
 
 from ragframework.base import Chunk, Retriever
 from ragframework.exceptions import RetrieverError
@@ -87,22 +90,62 @@ class ChromaRetriever(Retriever):
             len(embeddings[0]),
         )
 
+    @staticmethod
+    def _validate_filter(
+        filter: Mapping[str, Any] | None,
+    ) -> None:
+        """Validate metadata filter keys and scalar values."""
+        if filter is None:
+            return
+
+        if not isinstance(filter, Mapping):
+            raise RetrieverError("filter must be a mapping or None.")
+
+        for key, value in filter.items():
+            if not isinstance(key, str):
+                raise RetrieverError("Filter keys must be strings.")
+
+            if not isinstance(value, (str, int, float, bool)):
+                raise RetrieverError(
+                    f"Filter value for '{key}' must be a scalar " "(str, int, float, or bool)."
+                )
+
+            if isinstance(value, float) and not np.isfinite(value):
+                raise RetrieverError(f"Filter value for '{key}' must be finite.")
+
     def retrieve(
         self,
         query_embedding: list[float],
         top_k: int = 5,
+        *,
+        filter: Mapping[str, Any] | None = None,
     ) -> list[Chunk]:
-        """Return the most similar chunks for a query embedding."""
-        if top_k <= 0:
+        """Return similar chunks, optionally filtering by metadata."""
+        if not isinstance(top_k, int) or isinstance(top_k, bool):
+            raise RetrieverError("top_k must be an integer.")
+
+        self._validate_filter(filter)
+
+        if top_k <= 0 or len(self) == 0:
             return []
 
         query_embeddings: list[Sequence[float]] = [query_embedding]
 
+        where: Where | None = None
+
+        if filter:
+            conditions = [{key: {"$eq": value}} for key, value in filter.items()]
+
+            where = cast(
+                Where,
+                conditions[0] if len(conditions) == 1 else {"$and": conditions},
+            )
+
         try:
             result = self._collection.query(
                 query_embeddings=query_embeddings,
-                n_results=top_k,
-                include=["documents", "metadatas"],
+                n_results=min(top_k, len(self)),
+                where=where,
             )
         except Exception as exc:
             raise RetrieverError(f"Failed to query ChromaDB: {exc}") from exc
@@ -134,22 +177,29 @@ class ChromaRetriever(Retriever):
         return chunks_result
 
     @classmethod
-    def _metadata(cls, chunk: Chunk) -> dict[str, str]:
-        """Serialize chunk metadata into a collision-safe Chroma value."""
+    def _metadata(cls, chunk: Chunk) -> dict[str, Any]:
+        """Serialize metadata while exposing scalar fields for filtering."""
         metadata: dict[str, Any] = {}
 
         for key, value in chunk.metadata.items():
-            if isinstance(value, str | int | float | bool):
+            if isinstance(value, (str, int, float, bool)):
                 metadata[key] = value
             else:
                 metadata[key] = str(value)
 
-        return {
+        result: dict[str, Any] = {
             cls._METADATA_KEY: json.dumps(
                 metadata,
                 sort_keys=True,
             )
         }
+
+        # Expose scalar metadata fields directly so Chroma can filter them.
+        for key, value in chunk.metadata.items():
+            if key != cls._METADATA_KEY and isinstance(value, (str, int, float, bool)):
+                result[key] = value
+
+        return result
 
     @classmethod
     def _restore_metadata(
@@ -176,7 +226,9 @@ class ChromaRetriever(Retriever):
         """Delete and recreate the backing collection."""
         try:
             self._client.delete_collection(name=self._collection_name)
-            self._collection = self._client.get_or_create_collection(name=self._collection_name)
+            self._collection = self._client.get_or_create_collection(
+                name=self._collection_name,
+            )
         except Exception as exc:
             raise RetrieverError(f"Failed to clear ChromaDB collection: {exc}") from exc
 

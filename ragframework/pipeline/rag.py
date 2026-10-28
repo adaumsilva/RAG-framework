@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from ragframework.base import (
     Chunk,
@@ -233,19 +234,26 @@ class RAGPipeline:
 
         return total_chunks
 
-    def query(self, query: str, *, top_k: int | None = None) -> RAGResponse:
+    def query(
+        self,
+        query: str,
+        *,
+        top_k: int | None = None,
+        filter: Mapping[str, Any] | None = None,
+    ) -> RAGResponse:
         """Retrieve relevant chunks and generate an answer.
 
         Args:
             query: The user's question.
             top_k: Optional per-call override for the number of chunks to retrieve.
+            filter: Optional exact-match metadata conditions. All supplied
+                key-value pairs must match.
 
         Returns:
-            A :class:`~ragframework.base.RAGResponse` with the answer and
-            the source chunks used.
+            A RAGResponse with the answer and source chunks used.
 
         Raises:
-            :class:`~ragframework.exceptions.PipelineError`: If any stage fails.
+            PipelineError: If any stage fails.
         """
         try:
             query_embedding = self.embedder.embed([query])[0]
@@ -265,7 +273,11 @@ class RAGPipeline:
         retrieval_start = time.perf_counter()
 
         try:
-            chunks = self.retriever.retrieve(query_embedding, top_k=retrieve_k)
+            chunks = self.retriever.retrieve(
+                query_embedding,
+                top_k=retrieve_k,
+                filter=filter,
+            )
         except Exception as exc:
             raise PipelineError(f"Retrieval failed: {exc}") from exc
 
@@ -279,7 +291,11 @@ class RAGPipeline:
 
         if self.reranker is not None:
             try:
-                chunks = self.reranker.rerank(query, chunks, top_k=final_top_k)
+                chunks = self.reranker.rerank(
+                    query,
+                    chunks,
+                    top_k=final_top_k,
+                )
             except Exception as exc:
                 raise PipelineError(f"Reranking failed: {exc}") from exc
         else:
@@ -299,4 +315,8 @@ class RAGPipeline:
             generation_seconds,
         )
 
-        return RAGResponse(answer=answer, source_chunks=chunks, query=query)
+        return RAGResponse(
+            answer=answer,
+            source_chunks=chunks,
+            query=query,
+        )

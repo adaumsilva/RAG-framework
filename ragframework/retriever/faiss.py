@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -107,33 +108,64 @@ class FAISSRetriever(Retriever):
             matrix.shape[1],
         )
 
-    def retrieve(self, query_embedding: list[float], top_k: int = 5) -> list[Chunk]:
-        """Return up to ``top_k`` chunks ordered by approximate cosine similarity.
-
-        Non-positive ``top_k`` values return an empty list.  An empty index also
-        returns an empty list.  Invalid FAISS labels (for example ``-1`` when
-        fewer than ``top_k`` neighbours exist) are ignored.
-        """
+    def retrieve(
+        self,
+        query_embedding: list[float],
+        top_k: int = 5,
+        *,
+        filter: Mapping[str, Any] | None = None,
+    ) -> list[Chunk]:
+        """Retrieve similar chunks, optionally filtering by metadata."""
         if not isinstance(top_k, int) or isinstance(top_k, bool):
             raise RetrieverError("top_k must be an integer.")
+
+        if filter is not None:
+            if not isinstance(filter, Mapping):
+                raise RetrieverError("filter must be a mapping or None.")
+            for key, value in filter.items():
+                if not isinstance(key, str):
+                    raise RetrieverError("Filter keys must be strings.")
+                if not isinstance(value, (str, int, float, bool)):
+                    raise RetrieverError(
+                        f"Filter value for '{key}' must be a scalar " "(str, int, float, or bool)."
+                    )
+                if isinstance(value, float) and not np.isfinite(value):
+                    raise RetrieverError(f"Filter value for '{key}' must be finite.")
+
         if top_k <= 0 or self._index is None or self._dimension is None:
             return []
 
         query = validate_vector(query_embedding, "Query embedding")
         if query.shape[0] != self._dimension:
             raise RetrieverError(
-                f"Query embedding has dimension {query.shape[0]}; expected {self._dimension}."
+                f"Query embedding has dimension {query.shape[0]}; " f"expected {self._dimension}."
             )
 
-        count = min(top_k, len(self._chunks))
+        candidate_count = min(top_k * 4, len(self._chunks))
         try:
-            _scores, labels = self._index.search(query.reshape(1, -1), count)
+            _, indices = self._index.search(
+                query.reshape(1, -1),
+                candidate_count,
+            )
         except Exception as exc:
-            raise RetrieverError("FAISS failed to search the index.") from exc
+            raise RetrieverError(f"FAISS failed to search: {exc}") from exc
 
-        return [
-            self._chunks[int(label)] for label in labels[0] if 0 <= int(label) < len(self._chunks)
-        ]
+        results: list[Chunk] = []
+        for index in indices[0]:
+            if index < 0 or index >= len(self._chunks):
+                continue
+
+            chunk = self._chunks[int(index)]
+            if filter is not None and not all(
+                chunk.metadata.get(key) == expected for key, expected in filter.items()
+            ):
+                continue
+
+            results.append(chunk)
+            if len(results) == top_k:
+                break
+
+        return results
 
     def clear(self) -> None:
         """Drop the index so the next batch can use a new dimension."""
