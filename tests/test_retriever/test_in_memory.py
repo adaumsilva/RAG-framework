@@ -1,5 +1,6 @@
 """Tests for InMemoryRetriever."""
 
+import json
 import logging
 
 import pytest
@@ -256,3 +257,42 @@ def test_add_after_consolidation_preserves_all_results():
     assert [chunk.id for chunk in results] == ["c", "b", "a"]
     assert len(retriever._matrix_blocks) == 1
     assert retriever._matrix_blocks[0] is retriever._matrix
+
+
+def test_save_and_load_round_trip(tmp_path):
+    original = InMemoryRetriever()
+    chunks = [
+        make_chunk("a", [1.0, 0.0]),
+        make_chunk("b", [0.0, 1.0]),
+        make_chunk("c", [1.0, 1.0]),
+    ]
+    original.add(chunks)
+
+    original.save(tmp_path)
+    loaded = InMemoryRetriever.load(tmp_path)
+
+    assert len(loaded) == len(original)
+
+    query = [1.0, 0.2]
+    original_ids = [c.id for c in original.retrieve(query, top_k=3)]
+    loaded_ids = [c.id for c in loaded.retrieve(query, top_k=3)]
+    assert loaded_ids == original_ids
+
+
+def test_load_missing_directory_raises(tmp_path):
+    with pytest.raises(RetrieverError, match="Could not load"):
+        InMemoryRetriever.load(tmp_path / "nope")
+
+
+def test_load_wrong_format_version_raises(tmp_path):
+    r = InMemoryRetriever()
+    r.add([make_chunk("a", [1.0, 0.0])])
+    r.save(tmp_path)
+
+    chunks_file = tmp_path / "chunks.json"
+    data = json.loads(chunks_file.read_text(encoding="utf-8"))
+    data["format_version"] = 3
+    chunks_file.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(RetrieverError, match="format"):
+        InMemoryRetriever.load(tmp_path)

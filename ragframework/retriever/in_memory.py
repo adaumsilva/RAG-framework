@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -12,6 +14,7 @@ from ragframework.exceptions import RetrieverError
 from ragframework.utils.vectors import validate_vector
 
 logger = logging.getLogger(__name__)
+_FORMAT_VERSION = 1
 
 
 class InMemoryRetriever(Retriever):
@@ -106,6 +109,54 @@ class InMemoryRetriever(Retriever):
         self._matrix = None
         self._matrix_blocks = []
         self._dimension = None
+
+    def save(self, path: str | Path) -> None:
+        """Write the index to ``path`` as ``matrix.npy`` and ``chunks.json``."""
+        directory = Path(path)
+        if len(self._chunks) == 0:
+            raise RetrieverError("Cannot save an empty InMemoryRetriever")
+
+        directory.mkdir(parents=True, exist_ok=True)
+
+        matrix = np.concatenate(self._matrix_blocks)
+        np.save(directory / "matrix.npy", matrix)
+
+        records = [{"id": c.id, "content": c.content, "metadata": c.metadata} for c in self._chunks]
+        with open(directory / "chunks.json", "w", encoding="utf-8") as f:
+            json.dump({"format_version": _FORMAT_VERSION, "chunks": records}, f)
+
+    @classmethod
+    def load(cls, path: str | Path) -> InMemoryRetriever:
+        """Rebuild a retriever previously written by :meth:`save`."""
+        directory = Path(path)
+        try:
+            matrix = np.load(directory / "matrix.npy", allow_pickle=False)
+            with open(directory / "chunks.json", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError) as exc:
+            raise RetrieverError(
+                f"Could not load InMemoryRetriever from '{directory}': {exc}"
+            ) from exc
+
+        if data.get("format_version") != _FORMAT_VERSION:
+            raise RetrieverError(
+                f"'{directory}' uses index format {data.get('format_version')}, "
+                f"but this version of ragframework reads format {_FORMAT_VERSION}. "
+                "Re-create the index with save()."
+            )
+        if len(data["chunks"]) != int(matrix.shape[0]):
+            raise RetrieverError(
+                f"'{directory}' is inconsistent: {len(data['chunks'])} chunks "
+                f"but {int(matrix.shape[0])} vectors."
+            )
+
+        retriever = cls()
+        retriever._chunks = [
+            Chunk(id=r["id"], content=r["content"], metadata=r["metadata"]) for r in data["chunks"]
+        ]
+        retriever._matrix_blocks = [matrix]
+        retriever._dimension = int(matrix.shape[1])
+        return retriever
 
     def __len__(self) -> int:
         return len(self._chunks)
