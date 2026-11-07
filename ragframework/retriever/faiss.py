@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 _INSTALL_HINT = (
     "FAISS support requires 'ragframework[faiss]'. Install it with: pip install ragframework[faiss]"
 )
+_FORMAT_VERSION = 1
 
 
 class FAISSRetriever(Retriever):
@@ -140,6 +143,68 @@ class FAISSRetriever(Retriever):
         self._chunks = []
         self._dimension = None
         self._index = None
+
+    def save(self, path: str | Path) -> None:
+        """Write ``index.faiss``, ``chunks.json`` and ``meta.json`` to ``path``."""
+        if self._index is None:
+            raise RetrieverError("Cannot save an empty FAISSRetriever.")
+        directory = Path(path)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        faiss.write_index(self._index, str(directory / "index.faiss"))
+
+        records = [{"id": c.id, "content": c.content, "metadata": c.metadata} for c in self._chunks]
+        with open(directory / "chunks.json", "w", encoding="utf-8") as f:
+            json.dump(records, f)
+
+        meta = {
+            "format_version": _FORMAT_VERSION,
+            "dimension": self._dimension,
+            "m": self._m,
+            "ef_construction": self._ef_construction,
+            "ef_search": self._ef_search,
+        }
+        with open(directory / "meta.json", "w", encoding="utf-8") as f:
+            json.dump(meta, f)
+
+    @classmethod
+    def load(cls, path: str | Path) -> FAISSRetriever:
+        """Rebuild a retriever previously written by :meth:`save`."""
+        directory = Path(path)
+        try:
+            with open(directory / "meta.json", encoding="utf-8") as f:
+                meta = json.load(f)
+            with open(directory / "chunks.json", encoding="utf-8") as f:
+                records = json.load(f)
+            index = faiss.read_index(str(directory / "index.faiss"))
+        except (OSError, ValueError, RuntimeError) as exc:
+            raise RetrieverError(
+                f"Could not load FAISSRetriever from '{directory}': {exc}"
+            ) from exc
+
+        if meta.get("format_version") != _FORMAT_VERSION:
+            raise RetrieverError(
+                f"'{directory}' uses index format {meta.get('format_version')}, "
+                f"but this version of ragframework reads format {_FORMAT_VERSION}. "
+                "Re-create the index with save()."
+            )
+        if len(records) != index.ntotal:
+            raise RetrieverError(
+                f"'{directory}' is inconsistent: {len(records)} chunks "
+                f"but {index.ntotal} vectors."
+            )
+
+        retriever = cls(
+            m=meta["m"],
+            ef_construction=meta["ef_construction"],
+            ef_search=meta["ef_search"],
+        )
+        retriever._index = index
+        retriever._dimension = meta["dimension"]
+        retriever._chunks = [
+            Chunk(id=r["id"], content=r["content"], metadata=r["metadata"]) for r in records
+        ]
+        return retriever
 
     def __len__(self) -> int:
         """Return the number of indexed chunks."""

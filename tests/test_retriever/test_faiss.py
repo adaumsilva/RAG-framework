@@ -1,5 +1,6 @@
 """Tests for the FAISS-backed retriever."""
 
+import json
 import logging
 import subprocess
 import sys
@@ -241,3 +242,56 @@ else:
 """
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
+
+
+def test_save_and_load_round_trip(tmp_path) -> None:
+    original = FAISSRetriever(m=12, ef_construction=48, ef_search=64)
+    original.add(
+        [
+            make_chunk("north", [10.0, 0.0]),
+            make_chunk("northeast", [1.0, 1.0]),
+            make_chunk("east", [0.0, 3.0]),
+        ]
+    )
+
+    original.save(tmp_path)
+    loaded = FAISSRetriever.load(tmp_path)
+
+    assert len(loaded) == len(original)
+    assert loaded._m == 12
+    assert loaded._ef_construction == 48
+    assert loaded._ef_search == 64
+    query = [2.0, 0.5]
+    original_ids = [c.id for c in original.retrieve(query, top_k=3)]
+    loaded_ids = [c.id for c in loaded.retrieve(query, top_k=3)]
+    assert loaded_ids == original_ids
+    assert loaded.retrieve(query, top_k=1)[0].metadata == {"source": "north"}
+
+
+def test_load_missing_directory_raises(tmp_path) -> None:
+    with pytest.raises(RetrieverError, match="Could not load"):
+        FAISSRetriever.load(tmp_path / "nope")
+
+
+def test_load_corrupt_index_raises(tmp_path) -> None:
+    retriever = FAISSRetriever()
+    retriever.add([make_chunk("one", [1.0, 0.0])])
+    retriever.save(tmp_path)
+    (tmp_path / "index.faiss").write_bytes(b"not a faiss index")
+
+    with pytest.raises(RetrieverError, match="Could not load"):
+        FAISSRetriever.load(tmp_path)
+
+
+def test_load_wrong_format_version_raises(tmp_path) -> None:
+    retriever = FAISSRetriever()
+    retriever.add([make_chunk("one", [1.0, 0.0])])
+    retriever.save(tmp_path)
+
+    meta_file = tmp_path / "meta.json"
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    meta["format_version"] = 999
+    meta_file.write_text(json.dumps(meta), encoding="utf-8")
+
+    with pytest.raises(RetrieverError, match="format"):
+        FAISSRetriever.load(tmp_path)

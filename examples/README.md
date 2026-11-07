@@ -17,6 +17,26 @@ retriever.add([
 matches = retriever.retrieve([0.9, 0.1], top_k=1)
 ```
 
+### Saving and reloading an index
+
+`FAISSRetriever` and `InMemoryRetriever` can be written to a directory and
+reloaded later, so the corpus does not have to be re-embedded on every run:
+
+```python
+retriever.save("index_dir/")
+
+# Later, in a new process:
+retriever = FAISSRetriever.load("index_dir/")
+matches = retriever.retrieve([0.9, 0.1], top_k=1)
+```
+
+`FAISSRetriever.save()` writes `index.faiss`, `chunks.json`, and `meta.json`;
+`InMemoryRetriever.save()` writes `matrix.npy` and `chunks.json`. Chunk data is
+stored as JSON (never pickle), so loading an index cannot execute code. Embeddings
+are not repeated in `chunks.json`, so reloaded chunks have `embedding=None`.
+`load()` raises `RetrieverError` if the directory is missing, a file is corrupt, or
+the index was written by an incompatible format version.
+
 | File | Description |
 |------|-------------|
 | [basic_rag.py](basic_rag.py) | End-to-end pipeline using only built-in components (no API key needed) |
