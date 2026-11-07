@@ -145,7 +145,18 @@ class FAISSRetriever(Retriever):
         self._index = None
 
     def save(self, path: str | Path) -> None:
-        """Write ``index.faiss``, ``chunks.json`` and ``meta.json`` to ``path``."""
+        """Write ``index.faiss``, ``chunks.json`` and ``meta.json`` to ``path``.
+
+        ``meta.json`` records the format version, dimension, and HNSW
+        parameters (``m``, ``ef_construction``, ``ef_search``). The directory
+        is created if needed and existing files are overwritten.
+
+        Args:
+            path: Directory to write the index files into.
+
+        Raises:
+            RetrieverError: If the retriever holds no chunks.
+        """
         if self._index is None:
             raise RetrieverError("Cannot save an empty FAISSRetriever.")
         directory = Path(path)
@@ -169,7 +180,23 @@ class FAISSRetriever(Retriever):
 
     @classmethod
     def load(cls, path: str | Path) -> FAISSRetriever:
-        """Rebuild a retriever previously written by :meth:`save`."""
+        """Rebuild a retriever previously written by :meth:`save`.
+
+        The HNSW parameters are restored from ``meta.json``. Loaded chunks
+        have ``embedding=None``; their vectors live in ``index.faiss``.
+
+        Args:
+            path: Directory that :meth:`save` wrote to.
+
+        Returns:
+            A new retriever containing the saved index and chunks.
+
+        Raises:
+            ImportError: If the optional ``faiss-cpu`` dependency is unavailable.
+            RetrieverError: If the directory or a file is missing or corrupt,
+                the format version does not match, or the number of chunks
+                does not match the number of indexed vectors.
+        """
         directory = Path(path)
         try:
             with open(directory / "meta.json", encoding="utf-8") as f:

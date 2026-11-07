@@ -111,7 +111,18 @@ class InMemoryRetriever(Retriever):
         self._dimension = None
 
     def save(self, path: str | Path) -> None:
-        """Write the index to ``path`` as ``matrix.npy`` and ``chunks.json``."""
+        """Write the index to ``path`` as ``matrix.npy`` and ``chunks.json``.
+
+        Chunk ids, content, and metadata are stored as JSON; embeddings are
+        stored only in ``matrix.npy``. The directory is created if needed and
+        existing files are overwritten.
+
+        Args:
+            path: Directory to write the index files into.
+
+        Raises:
+            RetrieverError: If the retriever holds no chunks.
+        """
         directory = Path(path)
         if len(self._chunks) == 0:
             raise RetrieverError("Cannot save an empty InMemoryRetriever")
@@ -127,7 +138,22 @@ class InMemoryRetriever(Retriever):
 
     @classmethod
     def load(cls, path: str | Path) -> InMemoryRetriever:
-        """Rebuild a retriever previously written by :meth:`save`."""
+        """Rebuild a retriever previously written by :meth:`save`.
+
+        Loaded chunks have ``embedding=None``; their vectors are restored from
+        ``matrix.npy``. Pickled data is never loaded.
+
+        Args:
+            path: Directory that :meth:`save` wrote to.
+
+        Returns:
+            A new retriever containing the saved chunks.
+
+        Raises:
+            RetrieverError: If the directory or a file is missing or corrupt,
+                the format version does not match, or the number of chunks
+                does not match the number of stored vectors.
+        """
         directory = Path(path)
         try:
             matrix = np.load(directory / "matrix.npy", allow_pickle=False)
