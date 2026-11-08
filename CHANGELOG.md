@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `BM25Retriever` now defaults to the BM25L scoring variant.
 
 ### Fixed
+
+- Prevent duplicate chunk IDs within a single hybrid-retriever ranking from inflating RRF scores.
 - Repair the Getting Started guide's Markdown formatting and link it from the README and contributor guide (closes #30).
 - Optimize `InMemoryRetriever.add()` to normalize only newly added vectors and avoid rebuilding the full matrix on every call (closes #27).
 - `TextFileLoader` and `MarkdownLoader` now convert Unicode decoding and unknown encoding errors to `LoaderError`, with configurable text decoding error handling (closes #24).

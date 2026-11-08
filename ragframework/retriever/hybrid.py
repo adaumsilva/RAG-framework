@@ -17,6 +17,7 @@ class HybridRetriever(Retriever):
     Each child returns its top ``top_k * 2`` chunks. A chunk's fused score is
     the sum of ``1 / (k + rank)`` over the rankings it appears in (rank starts
     at 1), so chunks found by both retrievers outrank chunks found by one.
+    Duplicate chunk IDs within a child ranking contribute at most once.
     Ties are broken in favour of the dense ranking.
 
     Chunks are matched across retrievers by ``Chunk.id``, so both children must
@@ -56,11 +57,18 @@ class HybridRetriever(Retriever):
         self.sparse.clear()
 
     def _fuse(self, rankings: list[list[Chunk]], top_k: int) -> list[Chunk]:
-        """Merge ranked lists with RRF, deduplicating by chunk id."""
+        """Merge ranked lists with RRF, deduplicating each ranking by chunk ID."""
         scores: dict[str, float] = defaultdict(float)
         chunks: dict[str, Chunk] = {}
         for ranking in rankings:
-            for rank, chunk in enumerate(ranking, start=1):
+            seen_ids: set[str] = set()
+            rank = 0
+            for chunk in ranking:
+                if chunk.id in seen_ids:
+                    continue
+
+                seen_ids.add(chunk.id)
+                rank += 1
                 chunks.setdefault(chunk.id, chunk)
                 scores[chunk.id] += 1.0 / (self.k + rank)
 

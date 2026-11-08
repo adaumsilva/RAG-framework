@@ -35,6 +35,12 @@ class StubRetriever(Retriever):
         self.calls.clear()
 
 
+class IngestingStubRetriever(StubRetriever):
+    def add(self, chunks: list[Chunk]) -> None:
+        super().add(chunks)
+        self.results.extend(chunks)
+
+
 def chunk(chunk_id: str) -> Chunk:
     return Chunk(id=chunk_id, content=f"content {chunk_id}")
 
@@ -101,6 +107,33 @@ def test_duplicate_ids_are_deduplicated() -> None:
 
     assert len(results) == 1
     assert results[0] is dense.results[0]
+
+
+def test_duplicate_ids_within_one_ranking_are_scored_once() -> None:
+    a = chunk("a")
+    b = chunk("b")
+    dense = StubRetriever([a, a, a, b])
+    sparse = StubRetriever([b])
+
+    results = HybridRetriever(dense, sparse).retrieve([1.0], top_k=2, query_text="query")
+    print(results)
+    assert [item.id for item in results] == ["b", "a"]
+
+
+def test_repeated_ingestion_does_not_inflate_duplicate_scores() -> None:
+    a = chunk("a")
+    b = chunk("b")
+    dense = IngestingStubRetriever([a])
+    sparse = StubRetriever([b])
+    retriever = HybridRetriever(dense, sparse)
+
+    dense.add([a])
+    dense.add([a])
+    dense.add([b])
+
+    results = retriever.retrieve([1.0], top_k=2, query_text="query")
+
+    assert [item.id for item in results] == ["b", "a"]
 
 
 def test_empty_child_results_degrade_to_other_ranking() -> None:
