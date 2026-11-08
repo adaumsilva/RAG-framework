@@ -265,7 +265,7 @@ class RAGPipeline:
         retrieval_start = time.perf_counter()
 
         try:
-            chunks = self.retriever.retrieve(query_embedding, top_k=retrieve_k)
+            chunks = self.retriever.retrieve(query_embedding, top_k=retrieve_k, query_text=query)
         except Exception as exc:
             raise PipelineError(f"Retrieval failed: {exc}") from exc
 

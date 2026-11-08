@@ -39,6 +39,7 @@ huggingface = ["sentence-transformers>=2.7"]
 chromadb = ["chromadb>=0.5"]
 faiss = ["faiss-cpu>=1.8"]
 tokens = ["tiktoken>=0.7"]
+bm25 = ["rank-bm25>=0.2.2"]
 all = [
     "ragframework[pdf]",
     "ragframework[docx]",
@@ -48,6 +49,7 @@ all = [
     "ragframework[chromadb]",
     "ragframework[faiss]",
     "ragframework[tokens]",
+    "ragframework[bm25]",
 ]
 dev = [
     "pytest>=8.0",
@@ -59,6 +61,7 @@ dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
     "tiktoken>=0.7",
+    "rank-bm25>=0.2.2"
 ]
 
 [project.urls]

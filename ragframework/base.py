@@ -155,13 +155,20 @@ class Retriever(ABC):
         """Remove all indexed chunks."""
 
     @abstractmethod
-    def retrieve(self, query_embedding: list[float], top_k: int = 5) -> list[Chunk]:
+    def retrieve(
+        self,
+        query_embedding: list[float],
+        top_k: int = 5,
+        *,
+        query_text: str | None = None,
+    ) -> list[Chunk]:
         """Return the *top_k* most relevant chunks for *query_embedding*.
 
         Args:
             query_embedding: Query vector produced by an :class:`Embedder`.
             top_k: Maximum number of chunks to return. Non-positive values
                 return an empty list.
+            query_text: Optional raw query text, required for some retriever implementations (BM25).
 
         Returns:
             Up to *top_k* chunks, ordered by relevance (most relevant first).

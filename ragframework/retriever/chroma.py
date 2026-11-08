@@ -91,6 +91,8 @@ class ChromaRetriever(Retriever):
         self,
         query_embedding: list[float],
         top_k: int = 5,
+        *,
+        query_text: str | None = None,
     ) -> list[Chunk]:
         """Return the most similar chunks for a query embedding."""
         if top_k <= 0:

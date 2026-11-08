@@ -36,7 +36,6 @@ class OpenAIGenerator(Generator):
         ),
         max_tokens: int = 512,
     ) -> None:
-
         try:
             from openai import OpenAI
         except ImportError as exc:

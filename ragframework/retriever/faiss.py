@@ -107,7 +107,13 @@ class FAISSRetriever(Retriever):
             matrix.shape[1],
         )
 
-    def retrieve(self, query_embedding: list[float], top_k: int = 5) -> list[Chunk]:
+    def retrieve(
+        self,
+        query_embedding: list[float],
+        top_k: int = 5,
+        *,
+        query_text: str | None = None,
+    ) -> list[Chunk]:
         """Return up to ``top_k`` chunks ordered by approximate cosine similarity.
 
         Non-positive ``top_k`` values return an empty list.  An empty index also
