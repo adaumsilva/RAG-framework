@@ -2,16 +2,41 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from ragframework.base import Chunk, Retriever
 from ragframework.exceptions import RetrieverError
+from ragframework.retriever._persistence import (
+    check_format_version,
+    parse_chunk_records,
+    require_json_object,
+)
 from ragframework.utils.vectors import validate_vector
 
 logger = logging.getLogger(__name__)
+_FORMAT_VERSION = 1
+
+
+def _validate_matrix(matrix: np.ndarray[Any, Any], directory: Path) -> np.ndarray[Any, Any]:
+    """Return *matrix* as contiguous float32 if it is a 2-D array of finite numbers."""
+    if matrix.ndim != 2 or matrix.shape[0] == 0 or matrix.shape[1] == 0:
+        raise RetrieverError(
+            f"Malformed matrix.npy in '{directory}': expected a non-empty 2-D array, "
+            f"got shape {matrix.shape}."
+        )
+    if not (np.issubdtype(matrix.dtype, np.floating) or np.issubdtype(matrix.dtype, np.integer)):
+        raise RetrieverError(
+            f"Malformed matrix.npy in '{directory}': expected numeric data, "
+            f"got dtype {matrix.dtype}."
+        )
+    if not np.isfinite(matrix).all():
+        raise RetrieverError(f"Malformed matrix.npy in '{directory}': values must all be finite.")
+    return np.ascontiguousarray(matrix, dtype=np.float32)
 
 
 class InMemoryRetriever(Retriever):
@@ -106,6 +131,78 @@ class InMemoryRetriever(Retriever):
         self._matrix = None
         self._matrix_blocks = []
         self._dimension = None
+
+    def save(self, path: str | Path) -> None:
+        """Write the index to ``path`` as ``matrix.npy`` and ``chunks.json``.
+
+        Chunk ids, content, and metadata are stored as JSON; embeddings are
+        stored only in ``matrix.npy``. The directory is created if needed and
+        existing files are overwritten.
+
+        Args:
+            path: Directory to write the index files into.
+
+        Raises:
+            RetrieverError: If the retriever holds no chunks.
+        """
+        directory = Path(path)
+        if len(self._chunks) == 0:
+            raise RetrieverError("Cannot save an empty InMemoryRetriever")
+
+        directory.mkdir(parents=True, exist_ok=True)
+
+        matrix = np.concatenate(self._matrix_blocks)
+        np.save(directory / "matrix.npy", matrix)
+
+        records = [{"id": c.id, "content": c.content, "metadata": c.metadata} for c in self._chunks]
+        with open(directory / "chunks.json", "w", encoding="utf-8") as f:
+            json.dump({"format_version": _FORMAT_VERSION, "chunks": records}, f)
+
+    @classmethod
+    def load(cls, path: str | Path) -> InMemoryRetriever:
+        """Rebuild a retriever previously written by :meth:`save`.
+
+        Loaded chunks have ``embedding=None``; their vectors are restored from
+        ``matrix.npy``. Pickled data is never loaded.
+
+        Args:
+            path: Directory that :meth:`save` wrote to.
+
+        Returns:
+            A new retriever containing the saved chunks.
+
+        Raises:
+            RetrieverError: If the directory or a file is missing or corrupt,
+                ``chunks.json`` does not have the expected structure, the
+                format version does not match, ``matrix.npy`` is not a
+                two-dimensional array of finite numbers, or the number of
+                chunks does not match the number of stored vectors.
+        """
+        directory = Path(path)
+        try:
+            raw_matrix = np.load(directory / "matrix.npy", allow_pickle=False)
+            with open(directory / "chunks.json", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError) as exc:
+            raise RetrieverError(
+                f"Could not load InMemoryRetriever from '{directory}': {exc}"
+            ) from exc
+
+        data = require_json_object(data, "chunks.json", directory)
+        check_format_version(data.get("format_version"), _FORMAT_VERSION, "chunks.json", directory)
+        chunks = parse_chunk_records(data.get("chunks"), directory)
+        matrix = _validate_matrix(raw_matrix, directory)
+        if len(chunks) != matrix.shape[0]:
+            raise RetrieverError(
+                f"'{directory}' is inconsistent: {len(chunks)} chunks "
+                f"but {matrix.shape[0]} vectors."
+            )
+
+        retriever = cls()
+        retriever._chunks = chunks
+        retriever._matrix_blocks = [matrix]
+        retriever._dimension = int(matrix.shape[1])
+        return retriever
 
     def __len__(self) -> int:
         return len(self._chunks)
