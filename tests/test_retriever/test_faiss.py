@@ -9,6 +9,7 @@ import faiss
 import numpy as np
 import pytest
 
+import ragframework.retriever.faiss as faiss_retriever_module
 from ragframework.base import Chunk, Retriever
 from ragframework.exceptions import RetrieverError
 from ragframework.retriever.faiss import FAISSRetriever
@@ -294,4 +295,79 @@ def test_load_wrong_format_version_raises(tmp_path) -> None:
     meta_file.write_text(json.dumps(meta), encoding="utf-8")
 
     with pytest.raises(RetrieverError, match="format"):
+        FAISSRetriever.load(tmp_path)
+
+
+def test_load_without_faiss_raises_import_error(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    retriever = FAISSRetriever()
+    retriever.add([make_chunk("one", [1.0, 0.0])])
+    retriever.save(tmp_path)
+
+    # Simulate the optional dependency being absent, as when the import fails.
+    monkeypatch.setattr(faiss_retriever_module, "_FAISS_AVAILABLE", False)
+    monkeypatch.delattr(faiss_retriever_module, "faiss")
+
+    with pytest.raises(ImportError, match=r"pip install ragframework\[faiss\]"):
+        FAISSRetriever.load(tmp_path)
+
+
+def _save_two_chunks(directory) -> tuple[dict, list]:
+    retriever = FAISSRetriever()
+    retriever.add([make_chunk("a", [1.0, 0.0]), make_chunk("b", [0.0, 1.0])])
+    retriever.save(directory)
+    meta = json.loads((directory / "meta.json").read_text(encoding="utf-8"))
+    records = json.loads((directory / "chunks.json").read_text(encoding="utf-8"))
+    return meta, records
+
+
+def test_load_dimension_mismatch_raises(tmp_path) -> None:
+    meta, _records = _save_two_chunks(tmp_path)
+    meta["dimension"] = 3
+    (tmp_path / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    with pytest.raises(RetrieverError, match="dimension 2 but meta.json says 3"):
+        FAISSRetriever.load(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda meta: [], "meta.json.*expected a JSON object"),
+        (lambda meta: {k: v for k, v in meta.items() if k != "m"}, "'m' must be a positive"),
+        (lambda meta: {**meta, "m": "32"}, "'m' must be a positive"),
+        (lambda meta: {**meta, "ef_search": 0}, "'ef_search' must be a positive"),
+        (lambda meta: {**meta, "dimension": True}, "'dimension' must be a positive"),
+    ],
+)
+def test_load_malformed_meta_json_raises(tmp_path, mutate, message: str) -> None:
+    meta, _records = _save_two_chunks(tmp_path)
+    (tmp_path / "meta.json").write_text(json.dumps(mutate(meta)), encoding="utf-8")
+
+    with pytest.raises(RetrieverError, match=message):
+        FAISSRetriever.load(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda records: {"chunks": records}, "chunks.json.*list of chunk records"),
+        (lambda records: [{"id": 1, "content": "x", "metadata": {}}] * 2, "needs 'id'"),
+        (lambda records: records[:1], "1 chunks but 2 vectors"),
+    ],
+)
+def test_load_malformed_chunks_json_raises(tmp_path, mutate, message: str) -> None:
+    _meta, records = _save_two_chunks(tmp_path)
+    (tmp_path / "chunks.json").write_text(json.dumps(mutate(records)), encoding="utf-8")
+
+    with pytest.raises(RetrieverError, match=message):
+        FAISSRetriever.load(tmp_path)
+
+
+def test_load_rejects_index_with_wrong_metric(tmp_path) -> None:
+    _save_two_chunks(tmp_path)
+    l2_index = faiss.IndexHNSWFlat(2, 32)
+    l2_index.add(np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.float32))
+    faiss.write_index(l2_index, str(tmp_path / "index.faiss"))
+
+    with pytest.raises(RetrieverError, match="inner-product metric"):
         FAISSRetriever.load(tmp_path)

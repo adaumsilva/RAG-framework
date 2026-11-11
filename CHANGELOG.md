@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Structured logging for ingest, query, and retriever stages, including timing and empty-ingest warnings (closes #41).
 - `RecursiveChunker.from_config()` for creating a chunker from pipeline configuration (closes #25).
 - `DirectoryLoader` for loading supported documents from a directory with per-extension loader dispatch, including recursive and non-recursive traversal, `on_error` handling, and a skipped-file count (closes #34).
-- `save()` and `load()` for `FAISSRetriever` and `InMemoryRetriever`, persisting indexes to a directory with JSON chunk data (no pickle) and raising `RetrieverError` for missing, corrupt, or incompatible-version indexes (closes #39).
+- `save()` and `load()` for `FAISSRetriever` and `InMemoryRetriever`, persisting indexes to a directory with JSON chunk data (no pickle). `load()` validates the persisted files and raises `RetrieverError` for missing, corrupt, malformed, inconsistent, or incompatible-version indexes; FAISS indexes must come from a trusted source (closes #39).
 
 ### Changed
 

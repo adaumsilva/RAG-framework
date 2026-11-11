@@ -11,10 +11,32 @@ import numpy as np
 
 from ragframework.base import Chunk, Retriever
 from ragframework.exceptions import RetrieverError
+from ragframework.retriever._persistence import (
+    check_format_version,
+    parse_chunk_records,
+    require_json_object,
+)
 from ragframework.utils.vectors import validate_vector
 
 logger = logging.getLogger(__name__)
 _FORMAT_VERSION = 1
+
+
+def _validate_matrix(matrix: np.ndarray[Any, Any], directory: Path) -> np.ndarray[Any, Any]:
+    """Return *matrix* as contiguous float32 if it is a 2-D array of finite numbers."""
+    if matrix.ndim != 2 or matrix.shape[0] == 0 or matrix.shape[1] == 0:
+        raise RetrieverError(
+            f"Malformed matrix.npy in '{directory}': expected a non-empty 2-D array, "
+            f"got shape {matrix.shape}."
+        )
+    if not (np.issubdtype(matrix.dtype, np.floating) or np.issubdtype(matrix.dtype, np.integer)):
+        raise RetrieverError(
+            f"Malformed matrix.npy in '{directory}': expected numeric data, "
+            f"got dtype {matrix.dtype}."
+        )
+    if not np.isfinite(matrix).all():
+        raise RetrieverError(f"Malformed matrix.npy in '{directory}': values must all be finite.")
+    return np.ascontiguousarray(matrix, dtype=np.float32)
 
 
 class InMemoryRetriever(Retriever):
@@ -151,12 +173,14 @@ class InMemoryRetriever(Retriever):
 
         Raises:
             RetrieverError: If the directory or a file is missing or corrupt,
-                the format version does not match, or the number of chunks
-                does not match the number of stored vectors.
+                ``chunks.json`` does not have the expected structure, the
+                format version does not match, ``matrix.npy`` is not a
+                two-dimensional array of finite numbers, or the number of
+                chunks does not match the number of stored vectors.
         """
         directory = Path(path)
         try:
-            matrix = np.load(directory / "matrix.npy", allow_pickle=False)
+            raw_matrix = np.load(directory / "matrix.npy", allow_pickle=False)
             with open(directory / "chunks.json", encoding="utf-8") as f:
                 data = json.load(f)
         except (OSError, ValueError) as exc:
@@ -164,22 +188,18 @@ class InMemoryRetriever(Retriever):
                 f"Could not load InMemoryRetriever from '{directory}': {exc}"
             ) from exc
 
-        if data.get("format_version") != _FORMAT_VERSION:
+        data = require_json_object(data, "chunks.json", directory)
+        check_format_version(data.get("format_version"), _FORMAT_VERSION, "chunks.json", directory)
+        chunks = parse_chunk_records(data.get("chunks"), directory)
+        matrix = _validate_matrix(raw_matrix, directory)
+        if len(chunks) != matrix.shape[0]:
             raise RetrieverError(
-                f"'{directory}' uses index format {data.get('format_version')}, "
-                f"but this version of ragframework reads format {_FORMAT_VERSION}. "
-                "Re-create the index with save()."
-            )
-        if len(data["chunks"]) != int(matrix.shape[0]):
-            raise RetrieverError(
-                f"'{directory}' is inconsistent: {len(data['chunks'])} chunks "
-                f"but {int(matrix.shape[0])} vectors."
+                f"'{directory}' is inconsistent: {len(chunks)} chunks "
+                f"but {matrix.shape[0]} vectors."
             )
 
         retriever = cls()
-        retriever._chunks = [
-            Chunk(id=r["id"], content=r["content"], metadata=r["metadata"]) for r in data["chunks"]
-        ]
+        retriever._chunks = chunks
         retriever._matrix_blocks = [matrix]
         retriever._dimension = int(matrix.shape[1])
         return retriever

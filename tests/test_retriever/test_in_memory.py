@@ -3,6 +3,7 @@
 import json
 import logging
 
+import numpy as np
 import pytest
 
 from ragframework.base import Chunk
@@ -296,3 +297,62 @@ def test_load_wrong_format_version_raises(tmp_path):
 
     with pytest.raises(RetrieverError, match="format"):
         InMemoryRetriever.load(tmp_path)
+
+
+def _save_two_chunks(directory):
+    r = InMemoryRetriever()
+    r.add([make_chunk("a", [1.0, 0.0]), make_chunk("b", [0.0, 1.0])])
+    r.save(directory)
+    return json.loads((directory / "chunks.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda data: [1, 2], "chunks.json.*expected a JSON object"),
+        (lambda data: {**data, "chunks": "not a list"}, "chunks.json.*list of chunk records"),
+        (lambda data: {**data, "chunks": [1, 2]}, "record 0 must be an object"),
+        (
+            lambda data: {**data, "chunks": [{"id": "a", "metadata": {}}] * 2},
+            "record 0 needs 'content'",
+        ),
+        (
+            lambda data: {**data, "chunks": [{"id": "a", "content": "x", "metadata": []}] * 2},
+            "record 0 needs 'metadata'",
+        ),
+        (lambda data: {**data, "chunks": data["chunks"][:1]}, "1 chunks but 2 vectors"),
+    ],
+)
+def test_load_malformed_chunks_json_raises(tmp_path, mutate, message):
+    data = _save_two_chunks(tmp_path)
+    (tmp_path / "chunks.json").write_text(json.dumps(mutate(data)), encoding="utf-8")
+
+    with pytest.raises(RetrieverError, match=message):
+        InMemoryRetriever.load(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("matrix", "message"),
+    [
+        (np.array([1.0, 0.0]), "non-empty 2-D array"),
+        (np.empty((2, 0), dtype=np.float32), "non-empty 2-D array"),
+        (np.array([["a", "b"], ["c", "d"]]), "numeric data"),
+        (np.array([[True, False], [False, True]]), "numeric data"),
+        (np.array([[np.nan, 0.0], [0.0, 1.0]]), "finite"),
+    ],
+)
+def test_load_malformed_matrix_raises(tmp_path, matrix, message):
+    _save_two_chunks(tmp_path)
+    np.save(tmp_path / "matrix.npy", matrix)
+
+    with pytest.raises(RetrieverError, match=f"matrix.npy.*{message}"):
+        InMemoryRetriever.load(tmp_path)
+
+
+def test_load_corrupt_matrix_file_raises(tmp_path):
+    _save_two_chunks(tmp_path)
+    (tmp_path / "matrix.npy").write_bytes(b"not a numpy file")
+
+    with pytest.raises(RetrieverError, match="Could not load") as exc_info:
+        InMemoryRetriever.load(tmp_path)
+    assert exc_info.value.__cause__ is not None

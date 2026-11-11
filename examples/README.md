@@ -31,11 +31,20 @@ matches = retriever.retrieve([0.9, 0.1], top_k=1)
 ```
 
 `FAISSRetriever.save()` writes `index.faiss`, `chunks.json`, and `meta.json`;
-`InMemoryRetriever.save()` writes `matrix.npy` and `chunks.json`. Chunk data is
-stored as JSON (never pickle), so loading an index cannot execute code. Embeddings
-are not repeated in `chunks.json`, so reloaded chunks have `embedding=None`.
-`load()` raises `RetrieverError` if the directory is missing, a file is corrupt, or
-the index was written by an incompatible format version.
+`InMemoryRetriever.save()` writes `matrix.npy` and `chunks.json`. Chunk data and
+metadata are stored as JSON, and `matrix.npy` is loaded with `allow_pickle=False`.
+Embeddings are not repeated in `chunks.json`, so reloaded chunks have
+`embedding=None`.
+
+`load()` validates the files before building the retriever and raises
+`RetrieverError` if the directory is missing, a file is corrupt or malformed, the
+index was written by an incompatible format version, or the stored files do not
+agree with each other (for example, the FAISS index dimension does not match
+`meta.json`).
+
+> **Security:** `index.faiss` is parsed by FAISS's native code. Only load FAISS
+> indexes that you created yourself or obtained from a trusted source, and that
+> have not been tampered with.
 
 | File | Description |
 |------|-------------|

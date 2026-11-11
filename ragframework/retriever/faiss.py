@@ -18,6 +18,12 @@ else:
 
 from ragframework.base import Chunk, Retriever
 from ragframework.exceptions import RetrieverError
+from ragframework.retriever._persistence import (
+    check_format_version,
+    parse_chunk_records,
+    require_json_object,
+    require_positive_int,
+)
 from ragframework.utils.vectors import validate_vector
 
 logger = logging.getLogger(__name__)
@@ -185,6 +191,11 @@ class FAISSRetriever(Retriever):
         The HNSW parameters are restored from ``meta.json``. Loaded chunks
         have ``embedding=None``; their vectors live in ``index.faiss``.
 
+        Warning:
+            ``index.faiss`` is parsed by FAISS's native code. Only load
+            indexes that you created or obtained from a trusted source and
+            that have not been tampered with.
+
         Args:
             path: Directory that :meth:`save` wrote to.
 
@@ -194,43 +205,61 @@ class FAISSRetriever(Retriever):
         Raises:
             ImportError: If the optional ``faiss-cpu`` dependency is unavailable.
             RetrieverError: If the directory or a file is missing or corrupt,
-                the format version does not match, or the number of chunks
-                does not match the number of indexed vectors.
+                ``meta.json`` or ``chunks.json`` does not have the expected
+                structure, the format version does not match, or the index
+                dimension, vector count, or metric does not match the
+                stored metadata and chunks.
         """
+        if not _FAISS_AVAILABLE:
+            raise ImportError(_INSTALL_HINT)
+
         directory = Path(path)
         try:
             with open(directory / "meta.json", encoding="utf-8") as f:
-                meta = json.load(f)
+                raw_meta = json.load(f)
             with open(directory / "chunks.json", encoding="utf-8") as f:
                 records = json.load(f)
-            index = faiss.read_index(str(directory / "index.faiss"))
-        except (OSError, ValueError, RuntimeError) as exc:
+        except (OSError, ValueError) as exc:
             raise RetrieverError(
                 f"Could not load FAISSRetriever from '{directory}': {exc}"
             ) from exc
 
-        if meta.get("format_version") != _FORMAT_VERSION:
+        # Validate the JSON files before handing index.faiss to the native parser.
+        meta = require_json_object(raw_meta, "meta.json", directory)
+        check_format_version(meta.get("format_version"), _FORMAT_VERSION, "meta.json", directory)
+        dimension = require_positive_int(meta, "dimension", directory)
+        m = require_positive_int(meta, "m", directory)
+        ef_construction = require_positive_int(meta, "ef_construction", directory)
+        ef_search = require_positive_int(meta, "ef_search", directory)
+        chunks = parse_chunk_records(records, directory)
+
+        try:
+            index = faiss.read_index(str(directory / "index.faiss"))
+        except (OSError, RuntimeError) as exc:
             raise RetrieverError(
-                f"'{directory}' uses index format {meta.get('format_version')}, "
-                f"but this version of ragframework reads format {_FORMAT_VERSION}. "
-                "Re-create the index with save()."
+                f"Could not load FAISSRetriever from '{directory}': {exc}"
+            ) from exc
+
+        if index.d != dimension:
+            raise RetrieverError(
+                f"'{directory}' is inconsistent: index.faiss has dimension {index.d} "
+                f"but meta.json says {dimension}."
             )
-        if len(records) != index.ntotal:
+        if index.metric_type != faiss.METRIC_INNER_PRODUCT:
             raise RetrieverError(
-                f"'{directory}' is inconsistent: {len(records)} chunks "
+                f"'{directory}' is inconsistent: index.faiss does not use the "
+                "inner-product metric that FAISSRetriever requires."
+            )
+        if index.ntotal != len(chunks):
+            raise RetrieverError(
+                f"'{directory}' is inconsistent: {len(chunks)} chunks "
                 f"but {index.ntotal} vectors."
             )
 
-        retriever = cls(
-            m=meta["m"],
-            ef_construction=meta["ef_construction"],
-            ef_search=meta["ef_search"],
-        )
+        retriever = cls(m=m, ef_construction=ef_construction, ef_search=ef_search)
         retriever._index = index
-        retriever._dimension = meta["dimension"]
-        retriever._chunks = [
-            Chunk(id=r["id"], content=r["content"], metadata=r["metadata"]) for r in records
-        ]
+        retriever._dimension = dimension
+        retriever._chunks = chunks
         return retriever
 
     def __len__(self) -> int:
